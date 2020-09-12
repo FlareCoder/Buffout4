@@ -4,6 +4,7 @@
 * [Boost](https://www.boost.org/)
 	* Stacktrace
 * [CommonLibF4](https://github.com/Ryan-rsm-McKenzie/CommonLibF4)
+* [fmt](https://github.com/fmtlib/fmt)
 * [spdlog](https://github.com/gabime/spdlog)
 
 # End User Dependencies
