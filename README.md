@@ -1,5 +1,3 @@
-# Buffout4
- 
 # Build Dependencies
 * [Boost](https://www.boost.org/)
 	* Stacktrace
