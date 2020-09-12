@@ -115,4 +115,9 @@ namespace stl
 	}
 }
 
+namespace WinAPI
+{
+	using namespace F4SE::WinAPI;
+}
+
 using namespace std::literals;

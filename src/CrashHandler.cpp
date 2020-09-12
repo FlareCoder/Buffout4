@@ -123,8 +123,9 @@ namespace Crash
 				auto result = super::get_frame_info(a_frame);
 				if (it != _offset2ID.rend()) {
 					result += fmt::format(
-						FMT_STRING(" -> {}"),
-						it->id);
+						FMT_STRING(" -> {}+0x{:X}"),
+						it->id,
+						offset - it->offset);
 				}
 				return result;
 			}
@@ -217,16 +218,56 @@ namespace Crash
 		using value_type = Modules::Module;
 		using const_pointer = const value_type*;
 
-		Callstack(const ::EXCEPTION_RECORD& a_except) noexcept :
-			_frames(get_callstack(a_except))
-		{}
+		Callstack(const ::EXCEPTION_RECORD& a_except) noexcept
+		{
+			const auto exceptionAddress = reinterpret_cast<std::uintptr_t>(a_except.ExceptionAddress);
+			auto it = std::find_if(
+				_stacktrace.cbegin(),
+				_stacktrace.cend(),
+				[&](auto&& a_elem) noexcept {
+					return reinterpret_cast<std::uintptr_t>(a_elem.address()) == exceptionAddress;
+				});
+
+			if (it == _stacktrace.cend()) {
+				it = _stacktrace.cbegin();
+			}
+
+			_frames = stl::make_span(it, _stacktrace.cend());
+		}
 
 		void print(
 			std::shared_ptr<spdlog::logger> a_log,
 			stl::span<const std::unique_ptr<value_type>> a_modules) const noexcept
 		{
 			assert(a_log != nullptr);
-			a_log->critical("CALL STACK:"sv);
+			print_probable_callstack(a_log, a_modules);
+			a_log->critical(""sv);
+			print_raw_callstack(a_log);
+		}
+
+	private:
+		[[nodiscard]] static std::string get_size_string(std::size_t a_size) noexcept
+		{
+			return fmt::to_string(
+				fmt::to_string(a_size - 1)
+					.length());
+		}
+
+		[[nodiscard]] std::string get_format(std::size_t a_nameWidth) const noexcept
+		{
+			return "\t[{:>"s +
+				   get_size_string(_frames.size()) +
+				   "}] 0x{:012X} {:>"s +
+				   fmt::to_string(a_nameWidth) +
+				   "}{}"s;
+		}
+
+		void print_probable_callstack(
+			std::shared_ptr<spdlog::logger> a_log,
+			stl::span<const std::unique_ptr<value_type>> a_modules) const noexcept
+		{
+			assert(a_log != nullptr);
+			a_log->critical("PROBABLE CALL STACK:"sv);
 
 			std::vector<const_pointer> moduleStack;
 			moduleStack.reserve(_frames.size());
@@ -245,7 +286,7 @@ namespace Crash
 				}
 			}
 
-			const auto format = get_format([&]() {
+			const auto format = get_format([&]() noexcept {
 				std::size_t max = 0;
 				std::for_each(
 					moduleStack.begin(),
@@ -258,46 +299,36 @@ namespace Crash
 
 			for (std::size_t i = 0; i < _frames.size(); ++i) {
 				const auto mod = moduleStack[i];
+				const auto& frame = _frames[i];
 				a_log->critical(
 					format,
 					i,
+					reinterpret_cast<std::uintptr_t>(frame.address()),
 					(mod ? mod->name() : ""sv),
-					(mod ? mod->frame_info(_frames[i]) : ""s));
+					(mod ? mod->frame_info(frame) : ""s));
 			}
 		}
 
-	private:
-		[[nodiscard]] static auto get_callstack(const ::EXCEPTION_RECORD& a_except) noexcept
-			-> std::vector<boost::stacktrace::frame>
+		void print_raw_callstack(std::shared_ptr<spdlog::logger> a_log) const noexcept
 		{
-			boost::stacktrace::stacktrace callstack;
-			const auto exceptionAddress = reinterpret_cast<std::uintptr_t>(a_except.ExceptionAddress);
-			auto it = std::find_if(
-				callstack.begin(),
-				callstack.end(),
-				[&](auto&& a_elem) noexcept {
-					return reinterpret_cast<std::uintptr_t>(a_elem.address()) == exceptionAddress;
-				});
+			assert(a_log != nullptr);
+			a_log->critical("RAW CALL STACK:");
 
-			if (it == callstack.end()) {
-				it = callstack.begin();
+			const auto format =
+				"\t[{:>"s +
+				get_size_string(_stacktrace.size()) +
+				"}] 0x{:X}"s;
+
+			for (std::size_t i = 0; i < _stacktrace.size(); ++i) {
+				a_log->critical(
+					format,
+					i,
+					reinterpret_cast<std::uintptr_t>(_stacktrace[i].address()));
 			}
-
-			return { it, callstack.end() };
 		}
 
-		[[nodiscard]] std::string get_format(std::size_t a_nameWidth) const noexcept
-		{
-			return "\t[{:>"s +
-				   fmt::to_string(
-					   fmt::to_string(_frames.size() - 1)
-						   .length()) +
-				   "}] {:>"s +
-				   fmt::to_string(a_nameWidth) +
-				   "}{}"s;
-		}
-
-		std::vector<boost::stacktrace::frame> _frames;
+		boost::stacktrace::stacktrace _stacktrace;
+		stl::span<const boost::stacktrace::frame> _frames;
 	};
 
 	[[nodiscard]] std::shared_ptr<spdlog::logger> get_log() noexcept
@@ -325,6 +356,51 @@ namespace Crash
 
 		return log;
 	}
+
+#define EXCEPTION_CASE(a_code)                                               \
+	case a_code:                                                             \
+		a_log->critical(                                                     \
+			FMT_STRING("Unhandled exception \"{}\" at 0x{:X}"),              \
+			#a_code##sv,                                                     \
+			reinterpret_cast<std::uintptr_t>(a_exception.ExceptionAddress)); \
+		break
+
+	void print_exception(
+		std::shared_ptr<spdlog::logger> a_log,
+		const ::EXCEPTION_RECORD& a_exception) noexcept
+	{
+		assert(a_log != nullptr);
+
+		switch (a_exception.ExceptionCode) {
+			EXCEPTION_CASE(EXCEPTION_ACCESS_VIOLATION);
+			EXCEPTION_CASE(EXCEPTION_ARRAY_BOUNDS_EXCEEDED);
+			EXCEPTION_CASE(EXCEPTION_BREAKPOINT);
+			EXCEPTION_CASE(EXCEPTION_DATATYPE_MISALIGNMENT);
+			EXCEPTION_CASE(EXCEPTION_FLT_DENORMAL_OPERAND);
+			EXCEPTION_CASE(EXCEPTION_FLT_DIVIDE_BY_ZERO);
+			EXCEPTION_CASE(EXCEPTION_FLT_INEXACT_RESULT);
+			EXCEPTION_CASE(EXCEPTION_FLT_INVALID_OPERATION);
+			EXCEPTION_CASE(EXCEPTION_FLT_OVERFLOW);
+			EXCEPTION_CASE(EXCEPTION_FLT_STACK_CHECK);
+			EXCEPTION_CASE(EXCEPTION_FLT_UNDERFLOW);
+			EXCEPTION_CASE(EXCEPTION_ILLEGAL_INSTRUCTION);
+			EXCEPTION_CASE(EXCEPTION_IN_PAGE_ERROR);
+			EXCEPTION_CASE(EXCEPTION_INT_DIVIDE_BY_ZERO);
+			EXCEPTION_CASE(EXCEPTION_INT_OVERFLOW);
+			EXCEPTION_CASE(EXCEPTION_INVALID_DISPOSITION);
+			EXCEPTION_CASE(EXCEPTION_NONCONTINUABLE_EXCEPTION);
+			EXCEPTION_CASE(EXCEPTION_PRIV_INSTRUCTION);
+			EXCEPTION_CASE(EXCEPTION_SINGLE_STEP);
+			EXCEPTION_CASE(EXCEPTION_STACK_OVERFLOW);
+		default:
+			a_log->critical(
+				FMT_STRING("Unhandled exception at 0x{:X}"),
+				reinterpret_cast<std::uintptr_t>(a_exception.ExceptionAddress));
+			break;
+		}
+	}
+
+#undef EXCEPTION_CASE
 
 	void print_modules(
 		std::shared_ptr<spdlog::logger> a_log,
@@ -444,41 +520,43 @@ namespace Crash
 		};
 	}
 
-	std::int32_t Handler(::EXCEPTION_POINTERS* a_except) noexcept
+	std::int32_t __stdcall UnhandledExceptions(::EXCEPTION_POINTERS* a_exception) noexcept
 	{
-		switch (a_except->ExceptionRecord->ExceptionCode) {
-		case EXCEPTION_ACCESS_VIOLATION:
-		case EXCEPTION_ARRAY_BOUNDS_EXCEEDED:
-		case EXCEPTION_DATATYPE_MISALIGNMENT:
-		case EXCEPTION_ILLEGAL_INSTRUCTION:
-		case EXCEPTION_NONCONTINUABLE_EXCEPTION:
-		case EXCEPTION_STACK_OVERFLOW:
-			{
-				const auto log = get_log();
+#ifndef NDEBUG
+		for (; !::IsDebuggerPresent();) {}
+#endif
 
-				const auto modules = Modules::get_loaded_modules();
+		const auto modules = Modules::get_loaded_modules();
+		const auto log = get_log();
 
-				const Callstack callstack{ *a_except->ExceptionRecord };
-				callstack.print(log, stl::make_span(modules.begin(), modules.end()));
+		print_exception(log, *a_exception->ExceptionRecord);
 
-				log->critical(""sv);
-				print_registers(log, *a_except->ContextRecord);
-				log->critical(""sv);
-				print_modules(log, stl::make_span(modules.begin(), modules.end()));
-				log->critical(""sv);
-				print_plugins(log);
+		log->critical(""sv);
+		const Callstack callstack{ *a_exception->ExceptionRecord };
+		callstack.print(log, stl::make_span(modules.begin(), modules.end()));
 
-				log->flush();
+		log->critical(""sv);
+		print_registers(log, *a_exception->ContextRecord);
 
-				::TerminateProcess(
-					::GetCurrentProcess(),
-					EXIT_FAILURE);
-			}
-			break;
-		default:
-			break;
-		}
+		log->critical(""sv);
+		print_modules(log, stl::make_span(modules.begin(), modules.end()));
 
+		log->critical(""sv);
+		print_plugins(log);
+
+		log->flush();
+
+		WinAPI::TerminateProcess(
+			WinAPI::GetCurrentProcess(),
+			EXIT_FAILURE);
+
+		return EXCEPTION_CONTINUE_SEARCH;
+	}
+
+	std::int32_t _stdcall VectoredExceptions(::EXCEPTION_POINTERS*) noexcept
+	{
+		::SetUnhandledExceptionFilter(
+			reinterpret_cast<::LPTOP_LEVEL_EXCEPTION_FILTER>(&UnhandledExceptions));
 		return EXCEPTION_CONTINUE_SEARCH;
 	}
 
@@ -487,9 +565,9 @@ namespace Crash
 		const auto success =
 			::AddVectoredExceptionHandler(
 				1,
-				reinterpret_cast<::PVECTORED_EXCEPTION_HANDLER>(&Handler));
+				reinterpret_cast<::PVECTORED_EXCEPTION_HANDLER>(&VectoredExceptions));
 		if (success == nullptr) {
-			stl::report_and_fail("failed to install exception handler"sv);
+			stl::report_and_fail("failed to install vectored exception handler"sv);
 		}
 		logger::info("installed crash handlers"sv);
 	}
