@@ -226,6 +226,7 @@ namespace Crash
 			stl::span<const std::unique_ptr<value_type>> a_modules) const noexcept
 		{
 			assert(a_log != nullptr);
+			a_log->critical("CALL STACK:"sv);
 
 			std::vector<const_pointer> moduleStack;
 			moduleStack.reserve(_frames.size());
@@ -287,11 +288,11 @@ namespace Crash
 
 		[[nodiscard]] std::string get_format(std::size_t a_nameWidth) const noexcept
 		{
-			return "\t#{:>"s +
+			return "\t[{:>"s +
 				   fmt::to_string(
 					   fmt::to_string(_frames.size() - 1)
 						   .length()) +
-				   "} {:>"s +
+				   "}] {:>"s +
 				   fmt::to_string(a_nameWidth) +
 				   "}{}"s;
 		}
@@ -325,6 +326,124 @@ namespace Crash
 		return log;
 	}
 
+	void print_modules(
+		std::shared_ptr<spdlog::logger> a_log,
+		stl::span<const std::unique_ptr<Modules::Module>> a_modules) noexcept
+	{
+		assert(a_log != nullptr);
+		a_log->critical("MODULES:"sv);
+
+		const auto format = [&]() noexcept {
+			const auto width = [&]() noexcept {
+				std::size_t max = 0;
+				std::for_each(
+					a_modules.begin(),
+					a_modules.end(),
+					[&](auto&& a_elem) {
+						max = std::max(max, a_elem->name().length());
+					});
+				return max;
+			}();
+
+			return "\t{:<"s +
+				   fmt::to_string(width) +
+				   "} 0x{:012X}"s;
+		}();
+
+		for (const auto& mod : a_modules) {
+			a_log->critical(
+				format,
+				mod->name(),
+				mod->address());
+		}
+	}
+
+	void print_plugins(std::shared_ptr<spdlog::logger> a_log) noexcept
+	{
+		assert(a_log != nullptr);
+		a_log->critical("PLUGINS:"sv);
+
+		const auto datahandler = RE::TESDataHandler::GetSingleton();
+		if (datahandler) {
+			const auto& [files, smallfiles] = datahandler->compiledFileCollection;
+
+			const auto fileFormat = [&](auto&& a_files) {
+				return "\t[{:>02X}]{:"s +
+					   (!a_files.empty() ? "5"s : "1"s) +
+					   "}{}"s;
+			}(smallfiles);
+
+			for (const auto file : files) {
+				a_log->critical(
+					fileFormat,
+					file->GetCompileIndex(),
+					"",
+					file->GetFilename());
+			}
+
+			for (const auto file : smallfiles) {
+				a_log->critical(
+					FMT_STRING("\t[FE:{:>03X}] {}"),
+					file->GetSmallFileCompileIndex(),
+					file->GetFilename());
+			}
+		}
+	}
+
+	void print_registers(
+		std::shared_ptr<spdlog::logger> a_log,
+		const ::CONTEXT& a_context) noexcept
+	{
+		assert(a_log != nullptr);
+		a_log->critical("REGISTERS:"sv);
+
+		const std::array intRegs{
+			std::make_pair("RAX"sv, a_context.Rax),
+			std::make_pair("RCX"sv, a_context.Rcx),
+			std::make_pair("RDX"sv, a_context.Rdx),
+			std::make_pair("RBX"sv, a_context.Rbx),
+			std::make_pair("RSP"sv, a_context.Rsp),
+			std::make_pair("RBP"sv, a_context.Rbp),
+			std::make_pair("RSI"sv, a_context.Rsi),
+			std::make_pair("RDI"sv, a_context.Rdi),
+			std::make_pair("R8"sv, a_context.R8),
+			std::make_pair("R9"sv, a_context.R9),
+			std::make_pair("R10"sv, a_context.R10),
+			std::make_pair("R11"sv, a_context.R11),
+			std::make_pair("R12"sv, a_context.R12),
+			std::make_pair("R13"sv, a_context.R13),
+			std::make_pair("R14"sv, a_context.R14),
+			std::make_pair("R15"sv, a_context.R15),
+		};
+
+		for (const auto& [name, reg] : intRegs) {
+			a_log->critical(
+				FMT_STRING("\t{:<3} 0x{:X}"),
+				name,
+				reg);
+		}
+
+		// TODO
+		[[maybe_unused]] const std::array floatRegs{
+			std::make_pair("XMM0"sv, a_context.Xmm0),
+			std::make_pair("XMM1"sv, a_context.Xmm1),
+			std::make_pair("XMM2"sv, a_context.Xmm2),
+			std::make_pair("XMM3"sv, a_context.Xmm3),
+			std::make_pair("XMM4"sv, a_context.Xmm4),
+			std::make_pair("XMM5"sv, a_context.Xmm5),
+			std::make_pair("XMM6"sv, a_context.Xmm6),
+			std::make_pair("XMM7"sv, a_context.Xmm7),
+			std::make_pair("XMM8"sv, a_context.Xmm8),
+			std::make_pair("XMM9"sv, a_context.Xmm9),
+			std::make_pair("XMM10"sv, a_context.Xmm10),
+			std::make_pair("XMM11"sv, a_context.Xmm11),
+			std::make_pair("XMM12"sv, a_context.Xmm12),
+			std::make_pair("XMM13"sv, a_context.Xmm13),
+			std::make_pair("XMM14"sv, a_context.Xmm14),
+			std::make_pair("XMM15"sv, a_context.Xmm15),
+		};
+	}
+
 	std::int32_t Handler(::EXCEPTION_POINTERS* a_except) noexcept
 	{
 		switch (a_except->ExceptionRecord->ExceptionCode) {
@@ -336,12 +455,18 @@ namespace Crash
 		case EXCEPTION_STACK_OVERFLOW:
 			{
 				const auto log = get_log();
-				log->critical("CALL STACK:"sv);
 
 				const auto modules = Modules::get_loaded_modules();
 
 				const Callstack callstack{ *a_except->ExceptionRecord };
 				callstack.print(log, stl::make_span(modules.begin(), modules.end()));
+
+				log->critical(""sv);
+				print_registers(log, *a_except->ContextRecord);
+				log->critical(""sv);
+				print_modules(log, stl::make_span(modules.begin(), modules.end()));
+				log->critical(""sv);
+				print_plugins(log);
 
 				log->flush();
 
@@ -359,7 +484,6 @@ namespace Crash
 
 	void Install()
 	{
-		CrashToDesktop::Install();
 		const auto success =
 			::AddVectoredExceptionHandler(
 				1,
