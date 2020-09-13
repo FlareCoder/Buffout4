@@ -4,10 +4,16 @@
     <Filter Include="src">
       <UniqueIdentifier>{7a506b18-44f3-4758-a175-552bac4f66a0}</UniqueIdentifier>
     </Filter>
+    <Filter Include="src\Fixes">
+      <UniqueIdentifier>{f7d5ef2f-0405-4f46-bc4f-94fbf45f0d1c}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="src\CrashHandler.cpp">
       <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="src\Fixes\Fixes.cpp">
+      <Filter>src\Fixes</Filter>
     </ClCompile>
     <ClCompile Include="src\main.cpp">
       <Filter>src</Filter>
@@ -19,6 +25,12 @@
   <ItemGroup>
     <ClInclude Include="src\CrashHandler.h">
       <Filter>src</Filter>
+    </ClInclude>
+    <ClInclude Include="src\Fixes\Fixes.h">
+      <Filter>src\Fixes</Filter>
+    </ClInclude>
+    <ClInclude Include="src\Fixes\ScaleformAllocator.h">
+      <Filter>src\Fixes</Filter>
     </ClInclude>
     <ClInclude Include="src\PCH.h">
       <Filter>src</Filter>

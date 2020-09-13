@@ -216,6 +216,7 @@ copy "$(TargetDir)$(TargetName).pdb" "$(Fallout4Path)\Data\F4SE\Plugins\$(Target
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="src\CrashHandler.cpp" />
+    <ClCompile Include="src\Fixes\Fixes.cpp" />
     <ClCompile Include="src\main.cpp" />
     <ClCompile Include="src\PCH.cpp">
       <MultiProcessorCompilation Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">false</MultiProcessorCompilation>
@@ -230,6 +231,8 @@ copy "$(TargetDir)$(TargetName).pdb" "$(Fallout4Path)\Data\F4SE\Plugins\$(Target
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="src\CrashHandler.h" />
+    <ClInclude Include="src\Fixes\Fixes.h" />
+    <ClInclude Include="src\Fixes\ScaleformAllocator.h" />
     <ClInclude Include="src\PCH.h" />
     <ClInclude Include="src\version.h" />
   </ItemGroup>

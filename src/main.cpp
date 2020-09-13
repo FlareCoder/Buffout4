@@ -1,4 +1,5 @@
 #include "CrashHandler.h"
+#include "Fixes/Fixes.h"
 
 extern "C" DLLEXPORT bool F4SEAPI F4SEPlugin_Query(const F4SE::QueryInterface* a_f4se, F4SE::PluginInfo* a_info)
 {
@@ -49,8 +50,10 @@ extern "C" DLLEXPORT bool F4SEAPI F4SEPlugin_Load(const F4SE::LoadInterface* a_f
 	logger::info("Buffout4 loaded"sv);
 
 	F4SE::Init(a_f4se);
+	F4SE::AllocTrampoline(1 << 4);
 
 	Crash::Install();
+	Fixes::Install();
 
 	return true;
 }
