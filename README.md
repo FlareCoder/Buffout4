@@ -1,4 +1,5 @@
 # Build Dependencies
+* [AutoTOML](https://github.com/Ryan-rsm-McKenzie/AutoTOML)
 * [Boost](https://www.boost.org/)
 	* Stacktrace
 * [CommonLibF4](https://github.com/Ryan-rsm-McKenzie/CommonLibF4)

@@ -26,13 +26,19 @@
     <ClInclude Include="src\CrashHandler.h">
       <Filter>src</Filter>
     </ClInclude>
+    <ClInclude Include="src\Fixes\EncounterZoneResetFix.h">
+      <Filter>src\Fixes</Filter>
+    </ClInclude>
     <ClInclude Include="src\Fixes\Fixes.h">
       <Filter>src\Fixes</Filter>
     </ClInclude>
-    <ClInclude Include="src\Fixes\ScaleformAllocator.h">
+    <ClInclude Include="src\Fixes\ScaleformAllocatorFix.h">
       <Filter>src\Fixes</Filter>
     </ClInclude>
     <ClInclude Include="src\PCH.h">
+      <Filter>src</Filter>
+    </ClInclude>
+    <ClInclude Include="src\Settings.h">
       <Filter>src</Filter>
     </ClInclude>
     <ClInclude Include="src\version.h">

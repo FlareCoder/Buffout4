@@ -2,13 +2,13 @@
 
 namespace Fixes
 {
-	class ScaleformAllocator :
+	class ScaleformAllocatorFix :
 		public RE::Scaleform::SysAlloc
 	{
 	public:
-		[[nodiscard]] static ScaleformAllocator* GetSingleton()
+		[[nodiscard]] static ScaleformAllocatorFix* GetSingleton()
 		{
-			static ScaleformAllocator singleton;
+			static ScaleformAllocatorFix singleton;
 			return std::addressof(singleton);
 		}
 
@@ -17,7 +17,7 @@ namespace Fixes
 			REL::Relocation<std::uintptr_t> target{ REL::ID(903830), 0xEC };
 			auto& trampoline = F4SE::GetTrampoline();
 			_init = trampoline.write_call<5>(target.address(), Init);
-			logger::info("installed fixes for {}"sv, typeid(ScaleformAllocator).name());
+			logger::info("installed {}"sv, typeid(ScaleformAllocatorFix).name());
 		}
 
 	protected:
@@ -42,14 +42,14 @@ namespace Fixes
 			_init(a_rootHeapDesc, GetSingleton());
 		}
 
-		ScaleformAllocator() = default;
-		ScaleformAllocator(const ScaleformAllocator&) = delete;
-		ScaleformAllocator(ScaleformAllocator&&) = delete;
+		ScaleformAllocatorFix() = default;
+		ScaleformAllocatorFix(const ScaleformAllocatorFix&) = delete;
+		ScaleformAllocatorFix(ScaleformAllocatorFix&&) = delete;
 
-		~ScaleformAllocator() = default;
+		~ScaleformAllocatorFix() = default;
 
-		ScaleformAllocator& operator=(const ScaleformAllocator&) = delete;
-		ScaleformAllocator& operator=(ScaleformAllocator&&) = delete;
+		ScaleformAllocatorFix& operator=(const ScaleformAllocatorFix&) = delete;
+		ScaleformAllocatorFix& operator=(ScaleformAllocatorFix&&) = delete;
 
 		static inline REL::Relocation<decltype(Init)> _init;
 	};

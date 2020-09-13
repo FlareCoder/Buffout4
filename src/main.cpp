@@ -1,6 +1,15 @@
 #include "CrashHandler.h"
 #include "Fixes/Fixes.h"
 
+void F4SEAPI MessageHandler(F4SE::MessagingInterface::Message* a_message)
+{
+	switch (a_message->type) {
+	case F4SE::MessagingInterface::kGameDataReady:
+		Fixes::InstallLate();
+		break;
+	}
+}
+
 extern "C" DLLEXPORT bool F4SEAPI F4SEPlugin_Query(const F4SE::QueryInterface* a_f4se, F4SE::PluginInfo* a_info)
 {
 #ifndef NDEBUG
@@ -52,8 +61,13 @@ extern "C" DLLEXPORT bool F4SEAPI F4SEPlugin_Load(const F4SE::LoadInterface* a_f
 	F4SE::Init(a_f4se);
 	F4SE::AllocTrampoline(1 << 4);
 
+	const auto messaging = F4SE::GetMessagingInterface();
+	if (!messaging || !messaging->RegisterListener(MessageHandler)) {
+		return false;
+	}
+
 	Crash::Install();
-	Fixes::Install();
+	Fixes::InstallEarly();
 
 	return true;
 }

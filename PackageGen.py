@@ -8,6 +8,7 @@ def make_rel_archive(a_parent, a_name):
 		archive.write(a_parent + a_relative, a_relative)
 
 	do_write("F4SE/Plugins/" + a_name + ".dll")
+	do_write("F4SE/Plugins/" + a_name + ".toml")
 
 def make_dbg_archive(a_parent, a_name):
 	archive = zipfile.ZipFile("build/" + a_name + "_pdb" + ".zip", "w", zipfile.ZIP_DEFLATED)

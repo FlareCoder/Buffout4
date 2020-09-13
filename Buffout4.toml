@@ -1,0 +1,3 @@
+[Fixes]
+EncounterZoneReset = true	# Fixes encounter zones resetting immediately once you leave them on foot
+ScaleformAllocator = true	# Fixes crashes related to overloading the flash vm/scaleform

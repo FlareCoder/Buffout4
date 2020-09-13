@@ -1,12 +1,25 @@
 #include "Fixes/Fixes.h"
 
-#include "Fixes/ScaleformAllocator.h"
+#include "Fixes/EncounterZoneResetFix.h"
+#include "Fixes/ScaleformAllocatorFix.h"
+
+#include "Settings.h"
 
 namespace Fixes
 {
-	void Install()
+	void InstallEarly()
 	{
-		ScaleformAllocator::Install();
-		logger::info("installed all fixes"sv);
+		Settings::load();
+
+		if (*Settings::ScaleformAllocator) {
+			ScaleformAllocatorFix::Install();
+		}
+	}
+
+	void InstallLate()
+	{
+		if (*Settings::EncounterZoneReset) {
+			EncounterZoneResetFix::Install();
+		}
 	}
 }

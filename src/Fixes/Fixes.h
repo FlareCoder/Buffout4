@@ -2,5 +2,6 @@
 
 namespace Fixes
 {
-	void Install();
+	void InstallEarly();
+	void InstallLate();
 }
