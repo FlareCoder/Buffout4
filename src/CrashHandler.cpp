@@ -45,6 +45,7 @@
 #include <Windows.h>
 
 #include <Psapi.h>
+#include <winternl.h>
 
 #include <boost/stacktrace.hpp>
 
@@ -520,6 +521,38 @@ namespace Crash
 		};
 	}
 
+	void print_stack(
+		std::shared_ptr<spdlog::logger> a_log,
+		const ::CONTEXT& a_context) noexcept
+	{
+		assert(a_log != nullptr);
+		a_log->critical("STACK:"sv);
+
+		const auto tib = reinterpret_cast<const ::NT_TIB*>(::NtCurrentTeb());
+		const auto base = tib ? static_cast<const std::size_t*>(tib->StackBase) : nullptr;
+		if (!base) {
+			a_log->critical("\tFAILED TO READ TIB"sv);
+		} else {
+			const auto rsp = reinterpret_cast<const std::size_t*>(a_context.Rsp);
+			stl::span stack{ rsp, base };
+
+			const auto format = [&]() noexcept {
+				return "\t[RSP+{:<"s +
+					   fmt::to_string(
+						   fmt::format(FMT_STRING("{:X}"), (stack.size() - 1) * sizeof(std::size_t))
+							   .length()) +
+					   "X}] 0x{:<12X}"s;
+			}();
+
+			for (std::size_t i = 0; i < stack.size(); ++i) {
+				a_log->critical(
+					format,
+					i * sizeof(std::size_t),
+					stack[i]);
+			}
+		}
+	}
+
 	std::int32_t __stdcall UnhandledExceptions(::EXCEPTION_POINTERS* a_exception) noexcept
 	{
 #ifndef NDEBUG
@@ -537,6 +570,9 @@ namespace Crash
 
 		log->critical(""sv);
 		print_registers(log, *a_exception->ContextRecord);
+
+		log->critical(""sv);
+		print_stack(log, *a_exception->ContextRecord);
 
 		log->critical(""sv);
 		print_modules(log, stl::make_span(modules.begin(), modules.end()));
