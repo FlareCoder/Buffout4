@@ -120,6 +120,7 @@
     <Link>
       <SubSystem>Console</SubSystem>
       <GenerateDebugInformation>DebugFull</GenerateDebugInformation>
+      <AdditionalDependencies>Dbghelp.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
     <PostBuildEvent>
       <Command>copy "$(TargetPath)" "$(Fallout4Path)\Data\F4SE\Plugins\$(TargetFileName)" /Y
@@ -151,6 +152,7 @@ copy "$(ProjectDir)$(TargetName).toml" "$(Fallout4Path)\Data\F4SE\Plugins\$(Targ
       <EnableCOMDATFolding>true</EnableCOMDATFolding>
       <OptimizeReferences>true</OptimizeReferences>
       <GenerateDebugInformation>DebugFull</GenerateDebugInformation>
+      <AdditionalDependencies>Dbghelp.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
     <PostBuildEvent>
       <Command>copy "$(TargetPath)" "$(Fallout4Path)\Data\F4SE\Plugins\$(TargetFileName)" /Y
@@ -180,6 +182,7 @@ copy "$(ProjectDir)$(TargetName).toml" "$(Fallout4Path)\Data\F4SE\Plugins\$(Targ
     <Link>
       <SubSystem>Console</SubSystem>
       <GenerateDebugInformation>DebugFull</GenerateDebugInformation>
+      <AdditionalDependencies>Dbghelp.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
     <PostBuildEvent>
       <Command>copy "$(TargetPath)" "$(Fallout4Path)\Data\F4SE\Plugins\$(TargetFileName)" /Y
@@ -211,6 +214,7 @@ copy "$(ProjectDir)$(TargetName).toml" "$(Fallout4Path)\Data\F4SE\Plugins\$(Targ
       <EnableCOMDATFolding>true</EnableCOMDATFolding>
       <OptimizeReferences>true</OptimizeReferences>
       <GenerateDebugInformation>DebugFull</GenerateDebugInformation>
+      <AdditionalDependencies>Dbghelp.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
     <PostBuildEvent>
       <Command>copy "$(TargetPath)" "$(Fallout4Path)\Data\F4SE\Plugins\$(TargetFileName)" /Y

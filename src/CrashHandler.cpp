@@ -45,6 +45,7 @@
 #include <Windows.h>
 
 #include <Psapi.h>
+#include <dbghelp.h>
 #include <winternl.h>
 
 #include <boost/stacktrace.hpp>
@@ -53,6 +54,102 @@ namespace Crash
 {
 	namespace Modules
 	{
+		namespace detail
+		{
+			class VTable
+			{
+			public:
+				VTable(
+					std::string_view a_name,
+					stl::span<const std::byte> a_module,
+					stl::span<const std::byte> a_data,
+					stl::span<const std::byte> a_rdata) noexcept
+				{
+					const auto typeDesc = type_descriptor(a_name, a_data);
+					const auto col = typeDesc ? complete_object_locator(typeDesc, a_module, a_rdata) : nullptr;
+					_vtable = col ? virtual_table(col, a_rdata) : nullptr;
+				}
+
+				[[nodiscard]] const void* get() const noexcept { return _vtable; }
+
+			private:
+				[[nodiscard]] auto type_descriptor(
+					std::string_view a_name,
+					stl::span<const std::byte> a_data) const noexcept
+					-> const RE::RTTI::TypeDescriptor*
+				{
+					constexpr std::size_t offset = 0x10;  // offset of name into type descriptor
+					boost::algorithm::knuth_morris_pratt search(a_name.cbegin(), a_name.cend());
+					const auto& [first, last] = search(
+						reinterpret_cast<const char*>(a_data.data()),
+						reinterpret_cast<const char*>(a_data.data() + a_data.size()));
+					return first != last ?
+								 reinterpret_cast<const RE::RTTI::TypeDescriptor*>(first - offset) :
+								 nullptr;
+				}
+
+				[[nodiscard]] auto complete_object_locator(
+					const RE::RTTI::TypeDescriptor* a_typeDesc,
+					stl::span<const std::byte> a_module,
+					stl::span<const std::byte> a_rdata) const noexcept
+					-> const RE::RTTI::CompleteObjectLocator*
+				{
+					assert(a_typeDesc != nullptr);
+
+					const auto typeDesc = reinterpret_cast<std::uintptr_t>(a_typeDesc);
+					const auto rva = static_cast<std::uint32_t>(typeDesc - reinterpret_cast<std::uintptr_t>(a_module.data()));
+
+					const auto offset = static_cast<std::size_t>(a_rdata.data() - a_module.data());
+					const auto base = a_rdata.data();
+					const auto start = reinterpret_cast<const std::uint32_t*>(base);
+					const auto end = reinterpret_cast<const std::uint32_t*>(base + a_rdata.size());
+
+					for (auto iter = start; iter < end; ++iter) {
+						if (*iter == rva) {
+							// both base class desc and col can point to the type desc so we check
+							// the next int to see if it can be an rva to decide which type it is
+							if ((iter[1] < offset) || (offset + a_rdata.size() <= iter[1])) {
+								continue;
+							}
+
+							const auto ptr = reinterpret_cast<const std::byte*>(iter);
+							const auto col = reinterpret_cast<const RE::RTTI::CompleteObjectLocator*>(ptr - offsetof(RE::RTTI::CompleteObjectLocator, typeDescriptor));
+							if (col->offset != 0) {
+								continue;
+							}
+
+							return col;
+						}
+					}
+
+					return nullptr;
+				}
+
+				[[nodiscard]] const void* virtual_table(
+					const RE::RTTI::CompleteObjectLocator* a_col,
+					stl::span<const std::byte> a_rdata) const noexcept
+				{
+					assert(a_col != nullptr);
+
+					const auto col = reinterpret_cast<std::uintptr_t>(a_col);
+
+					const auto base = a_rdata.data();
+					const auto start = reinterpret_cast<const std::uintptr_t*>(base);
+					const auto end = reinterpret_cast<const std::uintptr_t*>(base + a_rdata.size());
+
+					for (auto iter = start; iter < end; ++iter) {
+						if (*iter == col) {
+							return iter + 1;
+						}
+					}
+
+					return nullptr;
+				}
+
+				const void* _vtable{ nullptr };
+			};
+		}
+
 		class Factory;
 		class Fallout4;
 		class Module;
@@ -76,7 +173,21 @@ namespace Crash
 				return _image.data() <= ptr && ptr < _image.data() + _image.size();
 			}
 
+			[[nodiscard]] bool in_data_range(const void* a_ptr) const noexcept
+			{
+				const auto ptr = reinterpret_cast<const std::byte*>(a_ptr);
+				return _data.data() <= ptr && ptr < _data.data() + _data.size();
+			}
+
+			[[nodiscard]] bool in_rdata_range(const void* a_ptr) const noexcept
+			{
+				const auto ptr = reinterpret_cast<const std::byte*>(a_ptr);
+				return _rdata.data() <= ptr && ptr < _rdata.data() + _rdata.size();
+			}
+
 			[[nodiscard]] std::string_view name() const noexcept { return _name; }
+
+			[[nodiscard]] const RE::msvc::type_info* type_info() const noexcept { return _typeInfo; }
 
 		protected:
 			friend class Factory;
@@ -84,7 +195,38 @@ namespace Crash
 			Module(std::string a_name, stl::span<const std::byte> a_image) noexcept :
 				_name(std::move(a_name)),
 				_image(a_image)
-			{}
+			{
+				auto dosHeader = reinterpret_cast<const ::IMAGE_DOS_HEADER*>(_image.data());
+				auto ntHeader = stl::adjust_pointer<::IMAGE_NT_HEADERS64>(dosHeader, dosHeader->e_lfanew);
+				stl::span sections(
+					IMAGE_FIRST_SECTION(ntHeader),
+					ntHeader->FileHeader.NumberOfSections);
+
+				const std::array todo{
+					std::make_pair(".data"sv, std::ref(_data)),
+					std::make_pair(".rdata"sv, std::ref(_rdata)),
+				};
+				for (auto& [name, section] : todo) {
+					const auto it = std::find_if(
+						sections.begin(),
+						sections.end(),
+						[&](auto&& a_elem) {
+							constexpr auto size = std::extent_v<decltype(a_elem.Name)>;
+							const auto len = std::min(name.size(), size);
+							return std::memcmp(name.data(), a_elem.Name, len) == 0;
+						});
+					if (it != sections.end()) {
+						section = stl::span{ it->VirtualAddress + _image.data(), it->SizeOfRawData };
+					}
+				}
+
+				if (!_image.empty() &&
+					!_data.empty() &&
+					!_rdata.empty()) {
+					detail::VTable v{ ".?AVtype_info@@"sv, _image, _data, _rdata };
+					_typeInfo = static_cast<const RE::msvc::type_info*>(v.get());
+				}
+			}
 
 			[[nodiscard]] virtual std::string get_frame_info(const boost::stacktrace::frame& a_frame) const noexcept
 			{
@@ -97,6 +239,9 @@ namespace Crash
 		private:
 			std::string _name;
 			stl::span<const std::byte> _image;
+			stl::span<const std::byte> _data;
+			stl::span<const std::byte> _rdata;
+			const RE::msvc::type_info* _typeInfo{ nullptr };
 		};
 
 		class Fallout4 final :
@@ -213,12 +358,208 @@ namespace Crash
 		}
 	}
 
+	using module_pointer = std::unique_ptr<Modules::Module>;
+
+	namespace Stack
+	{
+		class Integer
+		{
+		public:
+			[[nodiscard]] std::string name() const noexcept { return "size_t"; }
+		};
+
+		class Pointer
+		{
+		public:
+			[[nodiscard]] std::string name() const noexcept { return "void*"; }
+		};
+
+		class Polymorphic
+		{
+		public:
+			Polymorphic(
+				std::string_view a_mangled,
+				const Modules::Module* a_module,
+				const RE::RTTI::CompleteObjectLocator* a_col,
+				const void* a_ptr) noexcept :
+				_mangled{ a_mangled },
+				_module{ a_module },
+				_col{ a_col },
+				_ptr{ a_ptr }
+			{
+				assert(_mangled.size() > 1 && _mangled.data()[_mangled.size()] == '\0');
+				assert(_module != nullptr);
+				assert(_col != nullptr);
+				assert(_ptr != nullptr);
+			}
+
+			[[nodiscard]] std::string name() const noexcept
+			{
+				std::array<char, 0x1000> buf;
+				const auto len =
+					::UnDecorateSymbolName(
+						_mangled.data() + 1,
+						buf.data(),
+						static_cast<::DWORD>(buf.size()),
+						UNDNAME_NO_MS_KEYWORDS |
+							UNDNAME_NO_FUNCTION_RETURNS |
+							UNDNAME_NO_ALLOCATION_MODEL |
+							UNDNAME_NO_ALLOCATION_LANGUAGE |
+							UNDNAME_NO_THISTYPE |
+							UNDNAME_NO_ACCESS_SPECIFIERS |
+							UNDNAME_NO_THROW_SIGNATURES |
+							UNDNAME_NO_RETURN_UDT_MODEL |
+							UNDNAME_NAME_ONLY |
+							UNDNAME_NO_ARGUMENTS |
+							static_cast<::DWORD>(0x8000));	// Disable enum/class/struct/union prefix
+
+				if (len != 0) {
+					std::string result(buf.data(), len + 1);
+					result.back() = '*';
+					return result + analyze();
+				} else {
+					return "ERROR"s;
+				}
+			}
+
+		private:
+			[[nodiscard]] static std::string filter_TESForm(const void* a_ptr) noexcept
+			{
+				const auto form = static_cast<const RE::TESForm*>(a_ptr);
+				const auto file = form->GetDescriptionOwnerFile();
+				return fmt::format(
+					FMT_STRING("FormID=0x{:08X} Flags=0x{:08X} File=\"{}\""),
+					form->GetFormID(),
+					form->GetFormFlags(),
+					(file ? file->GetFilename() : ""sv));
+			}
+
+			[[nodiscard]] std::string analyze() const noexcept
+			{
+				const auto hierarchy =
+					reinterpret_cast<RE::RTTI::ClassHierarchyDescriptor*>(
+						_col->classDescriptor.offset() + _module->address());
+				const stl::span bases(
+					reinterpret_cast<std::uint32_t*>(
+						hierarchy->baseClassArray.offset() + _module->address()),
+					hierarchy->numBaseClasses);
+				for (const auto rva : bases) {
+					const auto base =
+						reinterpret_cast<RE::RTTI::BaseClassDescriptor*>(
+							rva + _module->address());
+					const auto desc =
+						reinterpret_cast<RE::RTTI::TypeDescriptor*>(
+							base->typeDescriptor.offset() + _module->address());
+					const auto it = FILTERS.find(desc->mangled_name());
+					if (it != FILTERS.end()) {	// TODO
+						const auto root = stl::adjust_pointer<void>(_ptr, -static_cast<std::ptrdiff_t>(_col->offset));
+						const auto target = stl::adjust_pointer<void>(root, static_cast<std::ptrdiff_t>(base->pmd.mDisp));
+						return " "s + it->second(target);
+					}
+				}
+
+				return ""s;
+			}
+
+			static constexpr auto FILTERS = frozen::make_map({
+				std::make_pair(".?AVTESForm@@"sv, filter_TESForm),
+			});
+
+			std::string_view _mangled;
+			const Modules::Module* _module{ nullptr };
+			const RE::RTTI::CompleteObjectLocator* _col{ nullptr };
+			const void* _ptr{ nullptr };
+		};
+
+		using analysis_result =
+			std::variant<
+				Integer,
+				Pointer,
+				Polymorphic>;
+
+		[[nodiscard]] const Modules::Module* get_module_for_pointer(
+			void* a_ptr,
+			stl::span<const module_pointer> a_modules) noexcept
+		{
+			const auto it = std::lower_bound(
+				a_modules.rbegin(),
+				a_modules.rend(),
+				reinterpret_cast<std::uintptr_t>(a_ptr),
+				[](auto&& a_lhs, auto&& a_rhs) noexcept {
+					return a_lhs->address() >= a_rhs;
+				});
+			return it != a_modules.rend() && (*it)->in_range(a_ptr) ? it->get() : nullptr;
+		}
+
+		[[nodiscard]] auto analyze_pointer(
+			void* a_ptr,
+			stl::span<const module_pointer> a_modules) noexcept
+			-> analysis_result
+		{
+			__try {
+				const auto vtable = *reinterpret_cast<void**>(a_ptr);
+				const auto mod = get_module_for_pointer(vtable, a_modules);
+				if (!mod || !mod->in_rdata_range(vtable)) {
+					return Pointer{};
+				}
+
+				const auto col =
+					*reinterpret_cast<RE::RTTI::CompleteObjectLocator**>(
+						reinterpret_cast<std::size_t*>(vtable) - 1);
+				if (mod != get_module_for_pointer(col, a_modules) || !mod->in_rdata_range(col)) {
+					return Pointer{};
+				}
+
+				const auto typeDesc =
+					reinterpret_cast<RE::RTTI::TypeDescriptor*>(
+						mod->address() + col->typeDescriptor.offset());
+				if (mod != get_module_for_pointer(typeDesc, a_modules) || !mod->in_data_range(typeDesc)) {
+					return Pointer{};
+				}
+
+				if (*reinterpret_cast<const void**>(typeDesc) != mod->type_info()) {
+					return Pointer{};
+				}
+
+				return Polymorphic{ typeDesc->mangled_name(), mod, col, a_ptr };
+			} __except (EXCEPTION_EXECUTE_HANDLER) {
+				return Pointer{};
+			}
+		}
+
+		[[nodiscard]] auto analyze_integer(
+			std::size_t a_value,
+			stl::span<const module_pointer> a_modules) noexcept
+			-> analysis_result
+		{
+			__try {
+				*reinterpret_cast<const volatile std::byte*>(a_value);
+				return analyze_pointer(reinterpret_cast<void*>(a_value), a_modules);
+			} __except (EXCEPTION_EXECUTE_HANDLER) {
+				return Integer{};
+			}
+		}
+
+		[[nodiscard]] std::vector<std::string> analyze_stack(
+			stl::span<const std::size_t> a_stack,
+			stl::span<const module_pointer> a_modules) noexcept
+		{
+			std::vector<std::string> results;
+			results.reserve(a_stack.size());
+			for (const auto val : a_stack) {
+				const auto result = analyze_integer(val, a_modules);
+				results.push_back(
+					std::visit(
+						[](auto&& a_val) noexcept { return a_val.name(); },
+						result));
+			}
+			return results;
+		}
+	}
+
 	class Callstack
 	{
 	public:
-		using value_type = Modules::Module;
-		using const_pointer = const value_type*;
-
 		Callstack(const ::EXCEPTION_RECORD& a_except) noexcept
 		{
 			const auto exceptionAddress = reinterpret_cast<std::uintptr_t>(a_except.ExceptionAddress);
@@ -238,7 +579,7 @@ namespace Crash
 
 		void print(
 			std::shared_ptr<spdlog::logger> a_log,
-			stl::span<const std::unique_ptr<value_type>> a_modules) const noexcept
+			stl::span<const module_pointer> a_modules) const noexcept
 		{
 			assert(a_log != nullptr);
 			print_probable_callstack(a_log, a_modules);
@@ -265,12 +606,12 @@ namespace Crash
 
 		void print_probable_callstack(
 			std::shared_ptr<spdlog::logger> a_log,
-			stl::span<const std::unique_ptr<value_type>> a_modules) const noexcept
+			stl::span<const module_pointer> a_modules) const noexcept
 		{
 			assert(a_log != nullptr);
 			a_log->critical("PROBABLE CALL STACK:"sv);
 
-			std::vector<const_pointer> moduleStack;
+			std::vector<const Modules::Module*> moduleStack;
 			moduleStack.reserve(_frames.size());
 			for (const auto& frame : _frames) {
 				const auto it = std::lower_bound(
@@ -405,7 +746,7 @@ namespace Crash
 
 	void print_modules(
 		std::shared_ptr<spdlog::logger> a_log,
-		stl::span<const std::unique_ptr<Modules::Module>> a_modules) noexcept
+		stl::span<const module_pointer> a_modules) noexcept
 	{
 		assert(a_log != nullptr);
 		a_log->critical("MODULES:"sv);
@@ -523,7 +864,8 @@ namespace Crash
 
 	void print_stack(
 		std::shared_ptr<spdlog::logger> a_log,
-		const ::CONTEXT& a_context) noexcept
+		const ::CONTEXT& a_context,
+		stl::span<const module_pointer> a_modules) noexcept
 	{
 		assert(a_log != nullptr);
 		a_log->critical("STACK:"sv);
@@ -541,14 +883,16 @@ namespace Crash
 					   fmt::to_string(
 						   fmt::format(FMT_STRING("{:X}"), (stack.size() - 1) * sizeof(std::size_t))
 							   .length()) +
-					   "X}] 0x{:<12X}"s;
+					   "X}] 0x{:<12X} ({})"s;
 			}();
 
+			const auto analysis = Stack::analyze_stack(stack, a_modules);
 			for (std::size_t i = 0; i < stack.size(); ++i) {
 				a_log->critical(
 					format,
 					i * sizeof(std::size_t),
-					stack[i]);
+					stack[i],
+					analysis[i]);
 			}
 		}
 	}
@@ -572,7 +916,7 @@ namespace Crash
 		print_registers(log, *a_exception->ContextRecord);
 
 		log->critical(""sv);
-		print_stack(log, *a_exception->ContextRecord);
+		print_stack(log, *a_exception->ContextRecord, stl::make_span(modules.begin(), modules.end()));
 
 		log->critical(""sv);
 		print_modules(log, stl::make_span(modules.begin(), modules.end()));

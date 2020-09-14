@@ -7,6 +7,7 @@
 #pragma warning(pop)
 
 #include <algorithm>
+#include <array>
 #include <cassert>
 #include <chrono>
 #include <cstdlib>
@@ -18,12 +19,16 @@
 #include <memory>
 #include <sstream>
 #include <string>
+#include <string_view>
 #include <type_traits>
 #include <typeinfo>
 #include <utility>
+#include <variant>
 #include <vector>
 
+#include <boost/algorithm/searching/knuth_morris_pratt.hpp>
 #include <fmt/chrono.h>
+#include <frozen/map.h>
 #include <spdlog/sinks/basic_file_sink.h>
 
 namespace WinAPI
