@@ -7,6 +7,7 @@
 * [fmt](https://github.com/fmtlib/fmt)
 * [Frozen](https://github.com/serge-sans-paille/frozen)
 * [spdlog](https://github.com/gabime/spdlog)
+* [Xbyak](https://github.com/herumi/xbyak)
 
 # End User Dependencies
 * [Address Library for F4SE Plugins](https://www.nexusmods.com/fallout4/mods/47327)

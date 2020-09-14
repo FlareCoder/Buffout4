@@ -31,7 +31,9 @@ public:
 	}
 
 	static inline bSetting EncounterZoneReset{ "Fixes"s, "EncounterZoneReset"s, true };
+	static inline bSetting SafeExit{ "Fixes"s, "SafeExit"s, true };
 	static inline bSetting ScaleformAllocator{ "Fixes"s, "ScaleformAllocator"s, true };
+	static inline bSetting SmallBlockAllocator{ "Fixes"s, "SmallBlockAllocator"s, true };
 
 private:
 	Settings() = delete;

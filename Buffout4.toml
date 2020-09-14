@@ -1,3 +1,5 @@
 [Fixes]
 EncounterZoneReset = true	# Fixes encounter zones resetting immediately once you leave them on foot
+SafeExit = true	# Fixes crashes related to exiting the game that can be caused erroneously by F4SE plugin hooks
 ScaleformAllocator = true	# Fixes crashes related to overloading the flash vm/scaleform
+SmallBlockAllocator = true	# Fixes crashes related to the small block allocator
