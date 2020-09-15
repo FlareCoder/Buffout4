@@ -223,7 +223,9 @@ copy "$(ProjectDir)$(TargetName).toml" "$(Fallout4Path)\Data\F4SE\Plugins\$(Targ
     </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ClCompile Include="src\CrashHandler.cpp" />
+    <ClCompile Include="src\Crash\CrashHandler.cpp" />
+    <ClCompile Include="src\Crash\Modules\ModuleHandler.cpp" />
+    <ClCompile Include="src\Crash\Stack\StackHandler.cpp" />
     <ClCompile Include="src\Fixes\Fixes.cpp" />
     <ClCompile Include="src\Fixes\SmallBlockAllocatorFix.cpp" />
     <ClCompile Include="src\main.cpp" />
@@ -239,7 +241,9 @@ copy "$(ProjectDir)$(TargetName).toml" "$(Fallout4Path)\Data\F4SE\Plugins\$(Targ
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="src\CrashHandler.h" />
+    <ClInclude Include="src\Crash\CrashHandler.h" />
+    <ClInclude Include="src\Crash\Modules\ModuleHandler.h" />
+    <ClInclude Include="src\Crash\Stack\StackHandler.h" />
     <ClInclude Include="src\Fixes\EncounterZoneResetFix.h" />
     <ClInclude Include="src\Fixes\Fixes.h" />
     <ClInclude Include="src\Fixes\SafeExit.h" />

@@ -44,10 +44,28 @@
 
 #include <Windows.h>
 
+#include <dbghelp.h>
+
 namespace WinAPI
 {
-	void OutputDebugStringA(const char* a_outputString)
+	void(OutputDebugStringA)(
+		const char* a_outputString) noexcept
 	{
-		::OutputDebugStringA(static_cast<::LPCSTR>(a_outputString));
+		::OutputDebugStringA(
+			static_cast<::LPCSTR>(a_outputString));
+	}
+
+	std::uint32_t(UnDecorateSymbolName)(
+		const char* a_name,
+		char* a_outputString,
+		std::uint32_t a_maxStringLength,
+		std::uint32_t a_flags) noexcept
+	{
+		return static_cast<std::uint32_t>(
+			::UnDecorateSymbolName(
+				static_cast<::PCSTR>(a_name),
+				static_cast<::PSTR>(a_outputString),
+				static_cast<::DWORD>(a_maxStringLength),
+				static_cast<::DWORD>(a_flags)));
 	}
 }

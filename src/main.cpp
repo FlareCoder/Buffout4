@@ -1,4 +1,4 @@
-#include "CrashHandler.h"
+#include "Crash/CrashHandler.h"
 #include "Fixes/Fixes.h"
 
 void F4SEAPI MessageHandler(F4SE::MessagingInterface::Message* a_message)
