@@ -5,8 +5,6 @@
 #include "Fixes/ScaleformAllocatorFix.h"
 #include "Fixes/SmallBlockAllocatorFix.h"
 
-#include "Settings.h"
-
 namespace Fixes
 {
 	void InstallEarly()

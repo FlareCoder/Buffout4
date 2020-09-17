@@ -1,10 +1,7 @@
 #pragma once
 
-#pragma warning(push)
-#pragma warning(disable : 4200 4324 5053)
 #include "F4SE/F4SE.h"
 #include "RE/Fallout.h"
-#pragma warning(pop)
 
 #include <algorithm>
 #include <array>
@@ -30,6 +27,8 @@
 #include <fmt/chrono.h>
 #include <frozen/map.h>
 #include <spdlog/sinks/basic_file_sink.h>
+
+#include "AutoTOML.hpp"
 
 namespace WinAPI
 {
@@ -148,3 +147,5 @@ namespace WinAPI
 }
 
 using namespace std::literals;
+
+#include "Settings.h"

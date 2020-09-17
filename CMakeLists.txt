@@ -57,6 +57,7 @@ set(MSVC_OPTIONS_GLOBAL
 
 add_compile_definitions(
 	"$<$<BOOL:${MSVC}>:_UNICODE>"
+	TOML_WINDOWS_COMPAT=0
 )
 
 add_compile_options(

@@ -1,7 +1,5 @@
 #pragma once
 
-#include "AutoTOML.hpp"
-
 class Settings
 {
 public:
