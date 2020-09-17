@@ -1,6 +1,7 @@
 #include "Fixes/Fixes.h"
 
 #include "Fixes/EncounterZoneResetFix.h"
+#include "Fixes/FaderMenuFix.h"
 #include "Fixes/SafeExit.h"
 #include "Fixes/ScaleformAllocatorFix.h"
 #include "Fixes/SmallBlockAllocatorFix.h"
@@ -10,6 +11,10 @@ namespace Fixes
 	void InstallEarly()
 	{
 		Settings::load();
+
+		if (*Settings::FaderMenu) {
+			FaderMenuFix::Install();
+		}
 
 		if (*Settings::SafeExit) {
 			SafeExit::Install();

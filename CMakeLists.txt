@@ -4,8 +4,14 @@ cmake_minimum_required(VERSION 3.18)
 
 project(
 	Buffout4
-	VERSION 1.0.0
+	VERSION 1.4.0
 	LANGUAGES CXX
+)
+
+configure_file(
+	${CMAKE_CURRENT_SOURCE_DIR}/version.rc.in
+	${CMAKE_CURRENT_BINARY_DIR}/version.rc
+	@ONLY
 )
 
 # ---- Include guards ----
@@ -66,6 +72,11 @@ add_compile_options(
 
 # ---- Dependencies ----
 
+set(Boost_USE_MULTITHREADED ON)
+set(Boost_USE_STATIC_LIBS ON)
+set(Boost_USE_STATIC_RUNTIME OFF)
+set(Boost_USE_DEBUG_RUNTIME ON)
+
 add_subdirectory($ENV{CommonLibF4Path} CommonLibF4)
 
 find_package(Boost REQUIRED)
@@ -84,6 +95,7 @@ set(headers
 	src/Crash/Stack/StackHandler.h
 	src/Crash/CrashHandler.h
 	src/Fixes/EncounterZoneResetFix.h
+	src/Fixes/FaderMenuFix.h
 	src/Fixes/Fixes.h
 	src/Fixes/SafeExit.h
 	src/Fixes/ScaleformAllocatorFix.h
@@ -116,8 +128,15 @@ set(MSVC_OPTIONS_PRIVATE
 add_library(Buffout4 SHARED
 	${headers}
 	${sources}
+	${CMAKE_CURRENT_BINARY_DIR}/version.rc
 	.clang-format
 	Buffout4.toml
+)
+
+set_property(
+	TARGET Buffout4
+	PROPERTY
+		MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>DLL"
 )
 
 target_compile_features(Buffout4
@@ -158,4 +177,14 @@ target_link_options(Buffout4
 target_precompile_headers(Buffout4
 	PRIVATE
 		src/PCH.h
+)
+
+# ---- Post build ----
+
+add_custom_command(
+	TARGET Buffout4
+	POST_BUILD
+	COMMAND ${CMAKE_COMMAND} -E copy $<TARGET_FILE:Buffout4> $ENV{Fallout4Path}/Data/F4SE/Plugins/
+	COMMAND ${CMAKE_COMMAND} -E copy $<TARGET_PDB_FILE:Buffout4> $ENV{Fallout4Path}/Data/F4SE/Plugins/
+	COMMAND ${CMAKE_COMMAND} -E copy ${CMAKE_SOURCE_DIR}/Buffout4.toml $ENV{Fallout4Path}/Data/F4SE/Plugins/
 )

@@ -3,7 +3,7 @@ import zipfile
 import zlib
 
 def make_rel_archive(a_parent, a_name):
-	archive = zipfile.ZipFile("build/" + a_name + ".zip", "w", zipfile.ZIP_DEFLATED)
+	archive = zipfile.ZipFile("release/" + a_name + ".zip", "w", zipfile.ZIP_DEFLATED)
 	def do_write(a_relative):
 		archive.write(a_parent + a_relative, a_relative)
 
@@ -11,23 +11,20 @@ def make_rel_archive(a_parent, a_name):
 	do_write("F4SE/Plugins/" + a_name + ".toml")
 
 def make_dbg_archive(a_parent, a_name):
-	archive = zipfile.ZipFile("build/" + a_name + "_pdb" + ".zip", "w", zipfile.ZIP_DEFLATED)
+	archive = zipfile.ZipFile("release/" + a_name + "_pdb" + ".zip", "w", zipfile.ZIP_DEFLATED)
 	archive.write(a_parent + "F4SE/Plugins/" + a_name + ".pdb", a_name + ".pdb")
 
 def main():
 	os.chdir(os.path.dirname(os.path.realpath(__file__)))
 	try:
-		os.mkdir("build")
+		os.mkdir("release")
 	except FileExistsError:
 		pass
 
 	parent = os.environ["Fallout4Path"] + "/Data/"
-	for file in os.listdir("."):
-		if file.endswith(".sln"):
-			proj = file.removesuffix(".sln")
-			make_rel_archive(parent, proj)
-			make_dbg_archive(parent, proj)
-			break
+	project = os.path.split(os.getcwd())[1].strip(os.sep)
+	make_rel_archive(parent, project)
+	make_dbg_archive(parent, project)
 	
 if __name__ == "__main__":
 	main()

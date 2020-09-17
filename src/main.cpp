@@ -59,7 +59,7 @@ extern "C" DLLEXPORT bool F4SEAPI F4SEPlugin_Load(const F4SE::LoadInterface* a_f
 	logger::info("Buffout4 loaded"sv);
 
 	F4SE::Init(a_f4se);
-	F4SE::AllocTrampoline(1 << 5);
+	F4SE::AllocTrampoline(1 << 6);
 
 	const auto messaging = F4SE::GetMessagingInterface();
 	if (!messaging || !messaging->RegisterListener(MessageHandler)) {
