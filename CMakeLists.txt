@@ -112,14 +112,11 @@ set(MSVC_OPTIONS_PRIVATE
 	/TP	# Specify Source File Type (C++)
 )
 
-add_library(Buffout4 SHARED ${headers} ${sources})
-
-target_sources(Buffout4
-	PRIVATE
-		${headers}
-		${sources}
-		.clang-format
-		Buffout4.toml
+add_library(Buffout4 SHARED
+	${headers}
+	${sources}
+	.clang-format
+	Buffout4.toml
 )
 
 target_compile_features(Buffout4
