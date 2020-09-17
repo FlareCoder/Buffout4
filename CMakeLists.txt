@@ -134,7 +134,7 @@ add_library(Buffout4 SHARED
 )
 
 set_property(
-	TARGET Buffout4
+	GLOBAL
 	PROPERTY
 		MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>DLL"
 )
