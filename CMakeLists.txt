@@ -25,8 +25,11 @@ endif()
 
 # ---- Globals ----
 
-set(MSVC_OPTIONS_GLOBAL
+set(MSVC_COMPILE_OPTIONS
+	/Gy	# Enable Function-Level Linking
 	/MP	# Build with Multiple Processes
+	/Oi	# Generate Intrinsic Functions
+	/sdl	# Enable Additional Security Checks
 	/Zi	# Debug Information Format
 	
 	/permissive-	# Standards conformance
@@ -61,16 +64,38 @@ set(MSVC_OPTIONS_GLOBAL
 	/WX	# Warning level (warnings are errors)
 )
 
+set(MSVC_LINK_OPTIONS_DEBUG
+	/INCREMENTAL	# Link Incrementally
+	/OPT:NOREF	# Optimizations (keep functions/data never referenced)
+	/OPT:NOICF	# Optimizations (prevent identical COMDAT folding)
+)
+
+set(MSVC_LINK_OPTIONS_RELEASE
+	/INCREMENTAL:NO	# Link Incrementally
+	/OPT:REF	# Optimizations (eliminate functions/data never referenced)
+	/OPT:ICF	# Optimizations (perform identical COMDAT folding)
+)
+
 add_compile_definitions(
 	"$<$<BOOL:${MSVC}>:_UNICODE>"
 	TOML_WINDOWS_COMPAT=0
 )
 
 add_compile_options(
-	"$<$<BOOL:${MSVC}>:${MSVC_OPTIONS_GLOBAL}>"
+	"$<$<BOOL:${MSVC}>:${MSVC_COMPILE_OPTIONS}>"
+	"$<$<AND:$<BOOL:${MSVC}>,$<CONFIG:DEBUG>>:/Zc:inline-;/JMC>"
+	"$<$<AND:$<BOOL:${MSVC}>,$<CONFIG:RELEASE>>:/Zc:inline;/JMC->"
+)
+
+add_link_options(
+	"$<$<AND:$<BOOL:${MSVC}>,$<CONFIG:DEBUG>>:${MSVC_LINK_OPTIONS_DEBUG}>"
+	"$<$<AND:$<BOOL:${MSVC}>,$<CONFIG:RELEASE>>:${MSVC_LINK_OPTIONS_RELEASE}>"
 )
 
 # ---- Dependencies ----
+
+set(CMAKE_INTERPROCEDURAL_OPTIMIZATION ON)
+set(CMAKE_INTERPROCEDURAL_OPTIMIZATION_DEBUG OFF)
 
 set(Boost_USE_MULTITHREADED ON)
 set(Boost_USE_STATIC_LIBS ON)
@@ -121,10 +146,6 @@ source_group(
 
 # ---- Create DLL ----
 
-set(MSVC_OPTIONS_PRIVATE
-	/TP	# Specify Source File Type (C++)
-)
-
 add_library(Buffout4 SHARED
 	${headers}
 	${sources}
@@ -146,7 +167,7 @@ target_compile_features(Buffout4
 
 target_compile_options(Buffout4
 	PRIVATE
-		"$<$<BOOL:${MSVC}>:${MSVC_OPTIONS_PRIVATE}>"
+		"$<$<BOOL:${MSVC}>:/TP>"
 )
 
 target_include_directories(Buffout4
