@@ -2,9 +2,11 @@ cmake_minimum_required(VERSION 3.18)
 
 # ---- Project ----
 
+cmake_policy(SET CMP0091 NEW)	# MSVC runtime library flags are selected by an abstraction
+
 project(
 	Buffout4
-	VERSION 1.4.0
+	VERSION 1.4.1
 	LANGUAGES CXX
 )
 
@@ -64,6 +66,16 @@ set(MSVC_COMPILE_OPTIONS
 	/WX	# Warning level (warnings are errors)
 )
 
+set(MSVC_COMPILE_OPTIONS_DEBUG
+	/Zc:inline-	# Keep unreferenced COMDAT
+	/JMC	# Just My Code debugging
+)
+
+set(MSVC_COMPILE_OPTIONS_RELEASE
+	/Zc:inline	# Remove unreferenced COMDAT
+	/JMC-	# Disable Just My Code debugging
+)
+
 set(MSVC_LINK_OPTIONS_DEBUG
 	/INCREMENTAL	# Link Incrementally
 	/OPT:NOREF	# Optimizations (keep functions/data never referenced)
@@ -83,8 +95,8 @@ add_compile_definitions(
 
 add_compile_options(
 	"$<$<BOOL:${MSVC}>:${MSVC_COMPILE_OPTIONS}>"
-	"$<$<AND:$<BOOL:${MSVC}>,$<CONFIG:DEBUG>>:/Zc:inline-;/JMC>"
-	"$<$<AND:$<BOOL:${MSVC}>,$<CONFIG:RELEASE>>:/Zc:inline;/JMC->"
+	"$<$<AND:$<BOOL:${MSVC}>,$<CONFIG:DEBUG>>:${MSVC_COMPILE_OPTIONS_DEBUG}>"
+	"$<$<AND:$<BOOL:${MSVC}>,$<CONFIG:RELEASE>>:${MSVC_COMPILE_OPTIONS_RELEASE}>"
 )
 
 add_link_options(
@@ -99,7 +111,7 @@ set(CMAKE_INTERPROCEDURAL_OPTIMIZATION_DEBUG OFF)
 
 set(Boost_USE_MULTITHREADED ON)
 set(Boost_USE_STATIC_LIBS ON)
-set(Boost_USE_STATIC_RUNTIME OFF)
+set(Boost_USE_STATIC_RUNTIME ON)
 set(Boost_USE_DEBUG_RUNTIME ON)
 
 add_subdirectory($ENV{CommonLibF4Path} CommonLibF4)
@@ -155,9 +167,11 @@ add_library(Buffout4 SHARED
 )
 
 set_property(
-	GLOBAL
+	TARGET
+		Buffout4
+		CommonLibF4
 	PROPERTY
-		MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>DLL"
+		MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>"
 )
 
 target_compile_features(Buffout4
@@ -174,8 +188,8 @@ target_include_directories(Buffout4
 	PRIVATE 
 		$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
 		$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/src>
-        $<INSTALL_INTERFACE:include>
-        $<INSTALL_INTERFACE:src>
+		$<INSTALL_INTERFACE:include>
+		$<INSTALL_INTERFACE:src>
 		${XBYAK_INCLUDE_DIRS}
 )
 
@@ -183,9 +197,9 @@ target_link_libraries(Buffout4
 	PUBLIC
 		Boost::headers
 		CommonLibF4
+		Dbghelp.lib
 		fmt::fmt
 		frozen::frozen
-		Dbghelp.lib
 		spdlog::spdlog
 		tomlplusplus::tomlplusplus
 )
