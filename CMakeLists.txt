@@ -2,11 +2,9 @@ cmake_minimum_required(VERSION 3.18)
 
 # ---- Project ----
 
-cmake_policy(SET CMP0091 NEW)	# MSVC runtime library flags are selected by an abstraction
-
 project(
 	Buffout4
-	VERSION 1.4.1
+	VERSION 1.4.2
 	LANGUAGES CXX
 )
 
@@ -90,6 +88,8 @@ set(MSVC_LINK_OPTIONS_RELEASE
 
 add_compile_definitions(
 	"$<$<BOOL:${MSVC}>:_UNICODE>"
+	BOOST_STACKTRACE_LINK
+	BOOST_STACKTRACE_USE_WINDBG
 	TOML_WINDOWS_COMPAT=0
 )
 
@@ -116,7 +116,11 @@ set(Boost_USE_DEBUG_RUNTIME ON)
 
 add_subdirectory($ENV{CommonLibF4Path} CommonLibF4)
 
-find_package(Boost REQUIRED)
+find_package(Boost
+	REQUIRED
+	COMPONENTS
+		stacktrace_windbg
+)
 find_package(fmt REQUIRED)
 find_package(frozen REQUIRED)
 find_package(spdlog REQUIRED)
@@ -196,6 +200,7 @@ target_include_directories(Buffout4
 target_link_libraries(Buffout4
 	PUBLIC
 		Boost::headers
+		Boost::stacktrace_windbg
 		CommonLibF4
 		Dbghelp.lib
 		fmt::fmt

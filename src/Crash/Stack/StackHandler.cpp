@@ -96,7 +96,8 @@ namespace Crash::Stack::F4
 							*objName);
 					}
 
-					if (const auto stateName = GetStateName(function); stateName) {
+					if (const auto stateName = GetStateName(function);
+						stateName && !stateName->empty()) {
 						a_results.emplace_back(
 							"State"sv,
 							*stateName);
@@ -332,18 +333,57 @@ namespace Crash::Stack::F4
 
 namespace Crash::Stack
 {
+	[[nodiscard]] const Modules::Module* get_module_for_pointer(
+		const void* a_ptr,
+		stl::span<const module_pointer> a_modules) noexcept
+	{
+		const auto it = std::lower_bound(
+			a_modules.rbegin(),
+			a_modules.rend(),
+			reinterpret_cast<std::uintptr_t>(a_ptr),
+			[](auto&& a_lhs, auto&& a_rhs) noexcept {
+				return a_lhs->address() >= a_rhs;
+			});
+		return it != a_modules.rend() && (*it)->in_range(a_ptr) ? it->get() : nullptr;
+	}
+
 	namespace detail
 	{
 		class Integer
 		{
 		public:
-			[[nodiscard]] std::string name() const noexcept { return "(size_t)"; }
+			[[nodiscard]] std::string name() const noexcept { return "(size_t)"s; }
 		};
 
 		class Pointer
 		{
 		public:
-			[[nodiscard]] std::string name() const noexcept { return "(void*)"; }
+			Pointer() noexcept = default;
+
+			Pointer(const void* a_ptr, stl::span<const module_pointer> a_modules) noexcept :
+				_module(get_module_for_pointer(a_ptr, a_modules))
+			{
+				if (_module) {
+					_ptr = a_ptr;
+				}
+			}
+
+			[[nodiscard]] std::string name() const noexcept
+			{
+				if (_module) {
+					const auto address = reinterpret_cast<std::uintptr_t>(_ptr);
+					return fmt::format(
+						FMT_STRING("(void* -> {}+0x{:X})"),
+						_module->name(),
+						address - _module->address());
+				} else {
+					return "(void*)"s;
+				}
+			}
+
+		private:
+			const Modules::Module* _module{ nullptr };
+			const void* _ptr{ nullptr };
 		};
 
 		class Polymorphic
@@ -357,12 +397,13 @@ namespace Crash::Stack
 
 			[[nodiscard]] std::string name() const noexcept
 			{
-				std::array<char, 0x1000> buf;
-				const auto len =
-					WinAPI::UnDecorateSymbolName(
-						_mangled.data() + 1,
-						buf.data(),
-						static_cast<std::uint32_t>(buf.size()),
+				const auto demangle = [](const char* a_in, char* a_out, std::uint32_t a_size) noexcept {
+					static std::mutex m;
+					std::lock_guard l{ m };
+					return WinAPI::UnDecorateSymbolName(
+						a_in,
+						a_out,
+						a_size,
 						(WinAPI::UNDNAME_NO_MS_KEYWORDS) |
 							(WinAPI::UNDNAME_NO_FUNCTION_RETURNS) |
 							(WinAPI::UNDNAME_NO_ALLOCATION_MODEL) |
@@ -374,6 +415,13 @@ namespace Crash::Stack
 							(WinAPI::UNDNAME_NAME_ONLY) |
 							(WinAPI::UNDNAME_NO_ARGUMENTS) |
 							static_cast<std::uint32_t>(0x8000));  // Disable enum/class/struct/union prefix
+				};
+
+				std::array<char, 0x1000> buf;
+				const auto len = demangle(
+					_mangled.data() + 1,
+					buf.data(),
+					static_cast<std::uint32_t>(buf.size()));
 
 				if (len != 0) {
 					return fmt::format(
@@ -464,20 +512,6 @@ namespace Crash::Stack
 				Polymorphic,
 				F4Polymorphic>;
 
-		[[nodiscard]] const Modules::Module* get_module_for_pointer(
-			void* a_ptr,
-			stl::span<const module_pointer> a_modules) noexcept
-		{
-			const auto it = std::lower_bound(
-				a_modules.rbegin(),
-				a_modules.rend(),
-				reinterpret_cast<std::uintptr_t>(a_ptr),
-				[](auto&& a_lhs, auto&& a_rhs) noexcept {
-					return a_lhs->address() >= a_rhs;
-				});
-			return it != a_modules.rend() && (*it)->in_range(a_ptr) ? it->get() : nullptr;
-		}
-
 		[[nodiscard]] auto analyze_pointer(
 			void* a_ptr,
 			stl::span<const module_pointer> a_modules) noexcept
@@ -487,25 +521,25 @@ namespace Crash::Stack
 				const auto vtable = *reinterpret_cast<void**>(a_ptr);
 				const auto mod = get_module_for_pointer(vtable, a_modules);
 				if (!mod || !mod->in_rdata_range(vtable)) {
-					return Pointer{};
+					return Pointer{ a_ptr, a_modules };
 				}
 
 				const auto col =
 					*reinterpret_cast<RE::RTTI::CompleteObjectLocator**>(
 						reinterpret_cast<std::size_t*>(vtable) - 1);
 				if (mod != get_module_for_pointer(col, a_modules) || !mod->in_rdata_range(col)) {
-					return Pointer{};
+					return Pointer{ a_ptr, a_modules };
 				}
 
 				const auto typeDesc =
 					reinterpret_cast<RE::RTTI::TypeDescriptor*>(
 						mod->address() + col->typeDescriptor.offset());
 				if (mod != get_module_for_pointer(typeDesc, a_modules) || !mod->in_data_range(typeDesc)) {
-					return Pointer{};
+					return Pointer{ a_ptr, a_modules };
 				}
 
 				if (*reinterpret_cast<const void**>(typeDesc) != mod->type_info()) {
-					return Pointer{};
+					return Pointer{ a_ptr, a_modules };
 				}
 
 				if (_stricmp(mod->name().data(), "Fallout4.exe") == 0) {
@@ -514,7 +548,7 @@ namespace Crash::Stack
 					return Polymorphic{ typeDesc->mangled_name() };
 				}
 			} __except (WinAPI::EXCEPTION_EXECUTE_HANDLER) {
-				return Pointer{};
+				return Pointer{ a_ptr, a_modules };
 			}
 		}
 

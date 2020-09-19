@@ -24,13 +24,13 @@
 #define NODRAWTEXT
 #define NOGDI
 #define NOKERNEL
-//#define NOUSER
+#define NOUSER
 #define NONLS
 #define NOMB
 #define NOMEMMGR
 #define NOMETAFILE
 #define NOMINMAX
-//#define NOMSG
+#define NOMSG
 #define NOOPENFILE
 #define NOSCROLL
 #define NOSERVICE
@@ -48,8 +48,6 @@
 #include <Windows.h>
 
 #include <winternl.h>
-
-#include <boost/stacktrace.hpp>
 
 namespace Crash
 {

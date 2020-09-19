@@ -46,8 +46,6 @@
 
 #include <Psapi.h>
 
-#include <boost/stacktrace.hpp>
-
 namespace Crash::Modules
 {
 	namespace detail

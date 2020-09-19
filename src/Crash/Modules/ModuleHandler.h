@@ -1,10 +1,5 @@
 #pragma once
 
-namespace boost::stacktrace
-{
-	class frame;
-}
-
 namespace Crash
 {
 	namespace Modules

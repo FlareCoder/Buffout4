@@ -14,6 +14,7 @@
 #include <fstream>
 #include <limits>
 #include <memory>
+#include <mutex>
 #include <sstream>
 #include <string>
 #include <string_view>
@@ -24,6 +25,7 @@
 #include <vector>
 
 #include <boost/algorithm/searching/knuth_morris_pratt.hpp>
+#include <boost/stacktrace.hpp>
 #include <fmt/chrono.h>
 #include <frozen/map.h>
 #include <spdlog/sinks/basic_file_sink.h>
