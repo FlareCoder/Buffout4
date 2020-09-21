@@ -4,7 +4,7 @@ cmake_minimum_required(VERSION 3.18)
 
 project(
 	Buffout4
-	VERSION 1.4.2
+	VERSION 1.5.0
 	LANGUAGES CXX
 )
 
@@ -90,6 +90,7 @@ add_compile_definitions(
 	"$<$<BOOL:${MSVC}>:_UNICODE>"
 	BOOST_STACKTRACE_LINK
 	BOOST_STACKTRACE_USE_WINDBG
+	F4SE_SUPPORT_XBYAK
 	TOML_WINDOWS_COMPAT=0
 )
 
@@ -135,6 +136,7 @@ set(headers
 	src/Crash/Modules/ModuleHandler.h
 	src/Crash/Stack/StackHandler.h
 	src/Crash/CrashHandler.h
+	src/Fixes/CellInitFix.h
 	src/Fixes/EncounterZoneResetFix.h
 	src/Fixes/FaderMenuFix.h
 	src/Fixes/Fixes.h
@@ -149,6 +151,7 @@ set(sources
 	src/Crash/Modules/ModuleHandler.cpp
 	src/Crash/Stack/StackHandler.cpp
 	src/Crash/CrashHandler.cpp
+	src/Fixes/CellInitFix.cpp
 	src/Fixes/Fixes.cpp
 	src/Fixes/SmallBlockAllocatorFix.cpp
 	src/main.cpp

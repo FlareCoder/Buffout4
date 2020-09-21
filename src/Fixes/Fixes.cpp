@@ -1,5 +1,6 @@
 #include "Fixes/Fixes.h"
 
+#include "Fixes/CellInitFix.h"
 #include "Fixes/EncounterZoneResetFix.h"
 #include "Fixes/FaderMenuFix.h"
 #include "Fixes/SafeExit.h"
@@ -11,6 +12,10 @@ namespace Fixes
 	void InstallEarly()
 	{
 		Settings::load();
+
+		if (*Settings::CellInit) {
+			CellInitFix::Install();
+		}
 
 		if (*Settings::FaderMenu) {
 			FaderMenuFix::Install();

@@ -28,6 +28,7 @@ public:
 		}
 	}
 
+	static inline bSetting CellInit{ "Fixes"s, "CellInit"s, true };
 	static inline bSetting EncounterZoneReset{ "Fixes"s, "EncounterZoneReset"s, true };
 	static inline bSetting FaderMenu{ "Fixes"s, "FaderMenu"s, true };
 	static inline bSetting SafeExit{ "Fixes"s, "SafeExit"s, true };
