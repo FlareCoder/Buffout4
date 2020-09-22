@@ -77,8 +77,6 @@ namespace Crash
 		{
 			assert(a_log != nullptr);
 			print_probable_callstack(a_log, a_modules);
-			a_log->critical(""sv);
-			print_raw_callstack(a_log);
 		}
 
 	private:
@@ -403,26 +401,32 @@ namespace Crash
 		print_exception(log, *a_exception->ExceptionRecord);
 		log->flush();
 
-		log->critical(""sv);
-		const Callstack callstack{ *a_exception->ExceptionRecord };
-		callstack.print(log, stl::make_span(modules.begin(), modules.end()));
-		log->flush();
+		const auto print = [&](auto&& a_functor) noexcept {
+			log->critical(""sv);
+			a_functor();
+			log->flush();
+		};
 
-		log->critical(""sv);
-		print_registers(log, *a_exception->ContextRecord);
-		log->flush();
+		print([&]() noexcept {
+			const Callstack callstack{ *a_exception->ExceptionRecord };
+			callstack.print(log, stl::make_span(modules.begin(), modules.end()));
+		});
 
-		log->critical(""sv);
-		print_stack(log, *a_exception->ContextRecord, stl::make_span(modules.begin(), modules.end()));
-		log->flush();
+		print([&]() noexcept {
+			print_registers(log, *a_exception->ContextRecord);
+		});
 
-		log->critical(""sv);
-		print_modules(log, stl::make_span(modules.begin(), modules.end()));
-		log->flush();
+		print([&]() noexcept {
+			print_stack(log, *a_exception->ContextRecord, stl::make_span(modules.begin(), modules.end()));
+		});
 
-		log->critical(""sv);
-		print_plugins(log);
-		log->flush();
+		print([&]() noexcept {
+			print_modules(log, stl::make_span(modules.begin(), modules.end()));
+		});
+
+		print([&]() noexcept {
+			print_plugins(log);
+		});
 
 		WinAPI::TerminateProcess(
 			WinAPI::GetCurrentProcess(),
