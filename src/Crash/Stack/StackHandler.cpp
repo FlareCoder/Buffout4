@@ -168,36 +168,6 @@ namespace Crash::Stack::F4
 		};
 	}
 
-	class NiNode
-	{
-	public:
-		using value_type = RE::NiNode;
-
-		static void filter(
-			std::vector<std::pair<std::string, std::string>>& a_results,
-			const void* a_ptr) noexcept
-		{
-			const auto node = static_cast<const value_type*>(a_ptr);
-
-			if (const auto name = GetName(node); name) {
-				a_results.emplace_back(
-					"Name"sv,
-					*name);
-			}
-		}
-
-	private:
-		[[nodiscard]] static auto GetName(const value_type* a_node) noexcept
-			-> std::optional<std::string_view>
-		{
-			__try {
-				return a_node->name;
-			} __except (WinAPI::EXCEPTION_EXECUTE_HANDLER) {
-				return std::nullopt;
-			}
-		}
-	};
-
 	class NiObjectNET
 	{
 	public:
@@ -524,7 +494,6 @@ namespace Crash::Stack
 				std::make_pair(".?AULooseFileStreamBase@?A0xaf4cad8a@BSResource@@"sv, F4::BSResource::LooseFileStreamBase::filter),
 				std::make_pair(".?AVNativeFunctionBase@NF_util@BSScript@@"sv, F4::BSScript::NF_util::NativeFunctionBase::filter),
 				std::make_pair(".?AVObjectTypeInfo@BSScript@@"sv, F4::BSScript::ObjectTypeInfo::filter),
-				std::make_pair(".?AVNiNode@@"sv, F4::NiNode::filter),
 				std::make_pair(".?AVNiObjectNET@@"sv, F4::NiObjectNET::filter),
 				std::make_pair(".?AVNiTexture@@"sv, F4::NiTexture::filter),
 				std::make_pair(".?AVTESForm@@"sv, F4::TESForm::filter),
