@@ -1,5 +1,6 @@
 #include "Fixes/Fixes.h"
 
+#include "Fixes/ActorIsHostileToActorFix.h"
 #include "Fixes/CellInitFix.h"
 #include "Fixes/EncounterZoneResetFix.h"
 #include "Fixes/FaderMenuFix.h"
@@ -12,6 +13,10 @@ namespace Fixes
 	void InstallEarly()
 	{
 		Settings::load();
+
+		if (*Settings::ActorIsHostileToActor) {
+			ActorIsHostileToActorFix::Install();
+		}
 
 		if (*Settings::CellInit) {
 			CellInitFix::Install();

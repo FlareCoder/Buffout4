@@ -4,12 +4,12 @@ cmake_minimum_required(VERSION 3.18)
 
 project(
 	Buffout4
-	VERSION 1.5.0
+	VERSION 1.6.0
 	LANGUAGES CXX
 )
 
 configure_file(
-	${CMAKE_CURRENT_SOURCE_DIR}/version.rc.in
+	${CMAKE_CURRENT_SOURCE_DIR}/cmake/version.rc.in
 	${CMAKE_CURRENT_BINARY_DIR}/version.rc
 	@ONLY
 )
@@ -136,6 +136,7 @@ set(headers
 	src/Crash/Modules/ModuleHandler.h
 	src/Crash/Stack/StackHandler.h
 	src/Crash/CrashHandler.h
+	src/Fixes/ActorIsHostileToActorFix.h
 	src/Fixes/CellInitFix.h
 	src/Fixes/EncounterZoneResetFix.h
 	src/Fixes/FaderMenuFix.h

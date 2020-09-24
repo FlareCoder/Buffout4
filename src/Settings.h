@@ -28,6 +28,7 @@ public:
 		}
 	}
 
+	static inline bSetting ActorIsHostileToActor{ "Fixes"s, "ActorIsHostileToActor"s, true };
 	static inline bSetting CellInit{ "Fixes"s, "CellInit"s, true };
 	static inline bSetting EncounterZoneReset{ "Fixes"s, "EncounterZoneReset"s, true };
 	static inline bSetting FaderMenu{ "Fixes"s, "FaderMenu"s, true };

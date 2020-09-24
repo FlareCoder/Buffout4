@@ -1,4 +1,5 @@
 [Fixes]
+ActorIsHostileToActor = true	# Fixes a crash when invoking Actor.IsHostileToActor with a none form
 CellInit = true	# Fixes a crash where a form does not get converted to a form pointer on unloaded cells
 EncounterZoneReset = true	# Fixes encounter zones resetting immediately once you leave them on foot
 FaderMenu = true	# Fixes a bug where the fader menu may not fully close
