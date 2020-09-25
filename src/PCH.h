@@ -150,4 +150,6 @@ namespace WinAPI
 
 using namespace std::literals;
 
+#include "Version.h"
+
 #include "Settings.h"

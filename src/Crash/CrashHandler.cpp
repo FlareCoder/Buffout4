@@ -398,6 +398,7 @@ namespace Crash
 		const auto modules = Modules::get_loaded_modules();
 		const auto log = get_log();
 
+		log->critical(Version::NAME);
 		print_exception(log, *a_exception->ExceptionRecord);
 		log->flush();
 

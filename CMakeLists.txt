@@ -9,6 +9,12 @@ project(
 )
 
 configure_file(
+	${CMAKE_CURRENT_SOURCE_DIR}/cmake/Version.h.in
+	${CMAKE_CURRENT_BINARY_DIR}/include/Version.h
+	@ONLY
+)
+
+configure_file(
 	${CMAKE_CURRENT_SOURCE_DIR}/cmake/version.rc.in
 	${CMAKE_CURRENT_BINARY_DIR}/version.rc
 	@ONLY
@@ -161,7 +167,15 @@ set(sources
 
 source_group(
 	TREE ${CMAKE_CURRENT_SOURCE_DIR}
-	FILES ${headers} ${sources}
+	FILES
+		${headers}
+		${sources}
+)
+
+source_group(
+	TREE ${CMAKE_CURRENT_BINARY_DIR}
+	FILES
+		${CMAKE_CURRENT_BINARY_DIR}/include/Version.h
 )
 
 # ---- Create DLL ----
@@ -169,6 +183,7 @@ source_group(
 add_library(Buffout4 SHARED
 	${headers}
 	${sources}
+	${CMAKE_CURRENT_BINARY_DIR}/include/Version.h
 	${CMAKE_CURRENT_BINARY_DIR}/version.rc
 	.clang-format
 	Buffout4.toml
@@ -194,10 +209,9 @@ target_compile_options(Buffout4
 
 target_include_directories(Buffout4
 	PRIVATE 
-		$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
-		$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/src>
-		$<INSTALL_INTERFACE:include>
-		$<INSTALL_INTERFACE:src>
+		${CMAKE_CURRENT_BINARY_DIR}/include
+		${CMAKE_CURRENT_SOURCE_DIR}/include
+		${CMAKE_CURRENT_SOURCE_DIR}/src
 		${XBYAK_INCLUDE_DIRS}
 )
 
