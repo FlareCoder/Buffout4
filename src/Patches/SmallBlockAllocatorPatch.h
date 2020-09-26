@@ -1,8 +1,8 @@
 #pragma once
 
-namespace Fixes
+namespace Patches
 {
-	class SmallBlockAllocatorFix
+	class SmallBlockAllocatorPatch
 	{
 	public:
 		static void Install()
@@ -13,7 +13,7 @@ namespace Fixes
 			REL::Relocation<std::uintptr_t> target{ REL::ID(329149), 0x48 };
 			REL::safe_fill(target.address(), REL::NOP, 0x5);
 
-			logger::info("installed {}"sv, typeid(SmallBlockAllocatorFix).name());
+			logger::info("installed {}"sv, typeid(SmallBlockAllocatorPatch).name());
 		}
 
 	private:

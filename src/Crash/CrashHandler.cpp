@@ -1,7 +1,7 @@
 #include "CrashHandler.h"
 
+#include "Crash/Introspection/Introspection.h"
 #include "Crash/Modules/ModuleHandler.h"
-#include "Stack/StackHandler.h"
 
 #define WIN32_LEAN_AND_MEAN
 
@@ -302,12 +302,13 @@ namespace Crash
 
 	void print_registers(
 		std::shared_ptr<spdlog::logger> a_log,
-		const ::CONTEXT& a_context) noexcept
+		const ::CONTEXT& a_context,
+		stl::span<const module_pointer> a_modules) noexcept
 	{
 		assert(a_log != nullptr);
 		a_log->critical("REGISTERS:"sv);
 
-		const std::array intRegs{
+		const std::array regs{
 			std::make_pair("RAX"sv, a_context.Rax),
 			std::make_pair("RCX"sv, a_context.Rcx),
 			std::make_pair("RDX"sv, a_context.Rdx),
@@ -326,32 +327,19 @@ namespace Crash
 			std::make_pair("R15"sv, a_context.R15),
 		};
 
-		for (const auto& [name, reg] : intRegs) {
-			a_log->critical(
-				FMT_STRING("\t{:<3} 0x{:X}"),
-				name,
-				reg);
+		std::array<std::size_t, regs.size()> todo;
+		for (std::size_t i = 0; i < regs.size(); ++i) {
+			todo[i] = regs[i].second;
 		}
-
-		// TODO
-		[[maybe_unused]] const std::array floatRegs{
-			std::make_pair("XMM0"sv, a_context.Xmm0),
-			std::make_pair("XMM1"sv, a_context.Xmm1),
-			std::make_pair("XMM2"sv, a_context.Xmm2),
-			std::make_pair("XMM3"sv, a_context.Xmm3),
-			std::make_pair("XMM4"sv, a_context.Xmm4),
-			std::make_pair("XMM5"sv, a_context.Xmm5),
-			std::make_pair("XMM6"sv, a_context.Xmm6),
-			std::make_pair("XMM7"sv, a_context.Xmm7),
-			std::make_pair("XMM8"sv, a_context.Xmm8),
-			std::make_pair("XMM9"sv, a_context.Xmm9),
-			std::make_pair("XMM10"sv, a_context.Xmm10),
-			std::make_pair("XMM11"sv, a_context.Xmm11),
-			std::make_pair("XMM12"sv, a_context.Xmm12),
-			std::make_pair("XMM13"sv, a_context.Xmm13),
-			std::make_pair("XMM14"sv, a_context.Xmm14),
-			std::make_pair("XMM15"sv, a_context.Xmm15),
-		};
+		const auto analysis = Introspection::analyze_data(todo, a_modules);
+		for (std::size_t i = 0; i < regs.size(); ++i) {
+			const auto& [name, reg] = regs[i];
+			a_log->critical(
+				FMT_STRING("\t{:<3} 0x{:<16X} {}"),
+				name,
+				reg,
+				analysis[i]);
+		}
 	}
 
 	void print_stack(
@@ -378,13 +366,21 @@ namespace Crash
 					   "X}] 0x{:<16X} {}"s;
 			}();
 
-			const auto analysis = Stack::analyze_stack(stack, a_modules);
-			for (std::size_t i = 0; i < stack.size(); ++i) {
-				a_log->critical(
-					format,
-					i * sizeof(std::size_t),
-					stack[i],
-					analysis[i]);
+			constexpr std::size_t blockSize = 1000;
+			std::size_t idx = 0;
+			for (std::size_t off = 0; off < stack.size(); off += blockSize) {
+				const auto analysis =
+					Introspection::analyze_data(
+						stack.subspan(off, std::min<std::size_t>(stack.size() - off, blockSize)),
+						a_modules);
+				for (const auto& data : analysis) {
+					a_log->critical(
+						format,
+						idx * sizeof(std::size_t),
+						stack[idx],
+						data);
+					++idx;
+				}
 			}
 		}
 	}
@@ -392,10 +388,11 @@ namespace Crash
 	std::int32_t __stdcall UnhandledExceptions(::EXCEPTION_POINTERS* a_exception) noexcept
 	{
 #ifndef NDEBUG
-		for (; !::IsDebuggerPresent();) {}
+		for (; !WinAPI::IsDebuggerPresent();) {}
 #endif
 
 		const auto modules = Modules::get_loaded_modules();
+		const auto cmodules = stl::make_span(modules.begin(), modules.end());
 		const auto log = get_log();
 
 		log->critical(Version::NAME);
@@ -410,19 +407,19 @@ namespace Crash
 
 		print([&]() noexcept {
 			const Callstack callstack{ *a_exception->ExceptionRecord };
-			callstack.print(log, stl::make_span(modules.begin(), modules.end()));
+			callstack.print(log, cmodules);
 		});
 
 		print([&]() noexcept {
-			print_registers(log, *a_exception->ContextRecord);
+			print_registers(log, *a_exception->ContextRecord, cmodules);
 		});
 
 		print([&]() noexcept {
-			print_stack(log, *a_exception->ContextRecord, stl::make_span(modules.begin(), modules.end()));
+			print_stack(log, *a_exception->ContextRecord, cmodules);
 		});
 
 		print([&]() noexcept {
-			print_modules(log, stl::make_span(modules.begin(), modules.end()));
+			print_modules(log, cmodules);
 		});
 
 		print([&]() noexcept {

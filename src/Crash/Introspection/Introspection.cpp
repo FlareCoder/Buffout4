@@ -1,8 +1,8 @@
-#include "Crash/Stack/StackHandler.h"
+#include "Crash/Introspection/Introspection.h"
 
 #include "Crash/Modules/ModuleHandler.h"
 
-namespace Crash::Stack::F4
+namespace Crash::Introspection::F4
 {
 	namespace BSResource
 	{
@@ -331,7 +331,7 @@ namespace Crash::Stack::F4
 	};
 }
 
-namespace Crash::Stack
+namespace Crash::Introspection
 {
 	[[nodiscard]] const Modules::Module* get_module_for_pointer(
 		const void* a_ptr,
@@ -566,19 +566,19 @@ namespace Crash::Stack
 		}
 	}
 
-	std::vector<std::string> analyze_stack(
-		stl::span<const std::size_t> a_stack,
+	std::vector<std::string> analyze_data(
+		stl::span<const std::size_t> a_data,
 		stl::span<const module_pointer> a_modules) noexcept
 	{
 		std::vector<std::string> results;
-		results.resize(a_stack.size());
+		results.resize(a_data.size());
 		std::for_each(
 			std::execution::parallel_unsequenced_policy{},
-			a_stack.begin(),
-			a_stack.end(),
+			a_data.begin(),
+			a_data.end(),
 			[&](auto& a_val) {
 				const auto result = detail::analyze_integer(a_val, a_modules);
-				const auto pos = std::addressof(a_val) - a_stack.data();
+				const auto pos = std::addressof(a_val) - a_data.data();
 				results[pos] =
 					std::visit(
 						[](auto&& a_val) noexcept { return a_val.name(); },

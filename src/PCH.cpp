@@ -48,6 +48,12 @@
 
 namespace WinAPI
 {
+	bool(IsDebuggerPresent)() noexcept
+	{
+		return static_cast<bool>(
+			::IsDebuggerPresent());
+	}
+
 	void(OutputDebugStringA)(
 		const char* a_outputString) noexcept
 	{

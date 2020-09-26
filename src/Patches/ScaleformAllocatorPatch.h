@@ -1,14 +1,14 @@
 #pragma once
 
-namespace Fixes
+namespace Patches
 {
-	class ScaleformAllocatorFix :
+	class ScaleformAllocatorPatch :
 		public RE::Scaleform::SysAlloc
 	{
 	public:
-		[[nodiscard]] static ScaleformAllocatorFix* GetSingleton()
+		[[nodiscard]] static ScaleformAllocatorPatch* GetSingleton()
 		{
-			static ScaleformAllocatorFix singleton;
+			static ScaleformAllocatorPatch singleton;
 			return std::addressof(singleton);
 		}
 
@@ -17,7 +17,7 @@ namespace Fixes
 			REL::Relocation<std::uintptr_t> target{ REL::ID(903830), 0xEC };
 			auto& trampoline = F4SE::GetTrampoline();
 			_init = trampoline.write_call<5>(target.address(), Init);
-			logger::info("installed {}"sv, typeid(ScaleformAllocatorFix).name());
+			logger::info("installed {}"sv, typeid(ScaleformAllocatorPatch).name());
 		}
 
 	protected:
@@ -42,14 +42,14 @@ namespace Fixes
 			_init(a_rootHeapDesc, GetSingleton());
 		}
 
-		ScaleformAllocatorFix() = default;
-		ScaleformAllocatorFix(const ScaleformAllocatorFix&) = delete;
-		ScaleformAllocatorFix(ScaleformAllocatorFix&&) = delete;
+		ScaleformAllocatorPatch() = default;
+		ScaleformAllocatorPatch(const ScaleformAllocatorPatch&) = delete;
+		ScaleformAllocatorPatch(ScaleformAllocatorPatch&&) = delete;
 
-		~ScaleformAllocatorFix() = default;
+		~ScaleformAllocatorPatch() = default;
 
-		ScaleformAllocatorFix& operator=(const ScaleformAllocatorFix&) = delete;
-		ScaleformAllocatorFix& operator=(ScaleformAllocatorFix&&) = delete;
+		ScaleformAllocatorPatch& operator=(const ScaleformAllocatorPatch&) = delete;
+		ScaleformAllocatorPatch& operator=(ScaleformAllocatorPatch&&) = delete;
 
 		static inline REL::Relocation<decltype(Init)> _init;
 	};

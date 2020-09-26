@@ -4,5 +4,8 @@ CellInit = true	# Fixes a crash where a form does not get converted to a form po
 EncounterZoneReset = true	# Fixes encounter zones resetting immediately once you leave them on foot
 FaderMenu = true	# Fixes a bug where the fader menu may not fully close
 SafeExit = true	# Fixes crashes related to exiting the game that can be caused erroneously by F4SE plugin hooks
-ScaleformAllocator = true	# Fixes crashes related to overloading the flash vm/scaleform
-SmallBlockAllocator = true	# Fixes crashes related to the small block allocator
+
+[Patches]
+MemoryManager = true	# Replaces the global memory manager with os allocators
+ScaleformAllocator = true	# Replaces the scaleform memory allocator with os allocators
+SmallBlockAllocator = true	# Replaces the small block memory allocators with os allocators

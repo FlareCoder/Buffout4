@@ -1,4 +1,4 @@
-#include "Fixes/SmallBlockAllocatorFix.h"
+#include "Patches/SmallBlockAllocatorPatch.h"
 
 #define WIN32_LEAN_AND_MEAN
 
@@ -44,7 +44,7 @@
 
 #include <xbyak/xbyak.h>
 
-namespace Fixes
+namespace Patches
 {
 	struct AllocPatch :
 		Xbyak::CodeGenerator
@@ -68,7 +68,7 @@ namespace Fixes
 		}
 	};
 
-	void SmallBlockAllocatorFix::InstallAllocations()
+	void SmallBlockAllocatorPatch::InstallAllocations()
 	{
 		constexpr std::size_t funcSize = 0xAC;
 		constexpr std::array todo{
@@ -97,7 +97,7 @@ namespace Fixes
 		}
 	}
 
-	void SmallBlockAllocatorFix::InstallDeallocations()
+	void SmallBlockAllocatorPatch::InstallDeallocations()
 	{
 		constexpr std::size_t funcSize = 0xB4;
 		constexpr std::array todo{

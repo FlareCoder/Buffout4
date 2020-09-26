@@ -7,10 +7,10 @@ namespace Crash
 		class Module;
 	}
 
-	namespace Stack
+	namespace Introspection
 	{
-		[[nodiscard]] std::vector<std::string> analyze_stack(
-			stl::span<const std::size_t> a_stack,
+		[[nodiscard]] std::vector<std::string> analyze_data(
+			stl::span<const std::size_t> a_data,
 			stl::span<const std::unique_ptr<Modules::Module>> a_modules) noexcept;
 	}
 }

@@ -1,23 +1,26 @@
 #include "Crash/CrashHandler.h"
 #include "Fixes/Fixes.h"
+#include "Patches/Patches.h"
+
+bool g_preloaded = false;
 
 void F4SEAPI MessageHandler(F4SE::MessagingInterface::Message* a_message)
 {
 	switch (a_message->type) {
 	case F4SE::MessagingInterface::kGameDataReady:
-		Fixes::InstallLate();
+		Fixes::PostInit();
 		break;
 	}
 }
 
-extern "C" DLLEXPORT bool F4SEAPI F4SEPlugin_Query(const F4SE::QueryInterface* a_f4se, F4SE::PluginInfo* a_info)
+void OpenLog()
 {
 #ifndef NDEBUG
 	auto sink = std::make_shared<logger::msvc_sink_mt>();
 #else
 	auto path = logger::log_directory();
 	if (!path) {
-		return false;
+		stl::report_and_fail("Failed to find standard logging directory"sv);
 	}
 
 	*path /= "Buffout4.log"sv;
@@ -35,6 +38,29 @@ extern "C" DLLEXPORT bool F4SEAPI F4SEPlugin_Query(const F4SE::QueryInterface* a
 
 	spdlog::set_default_logger(std::move(log));
 	spdlog::set_pattern("%g(%#): [%^%l%$] %v"s);
+}
+
+extern "C" DLLEXPORT int __stdcall DllMain(void*, unsigned long a_reason, void*)
+{
+#ifndef NDEBUG
+	for (; !WinAPI::IsDebuggerPresent();) {}
+#endif
+
+	if (a_reason == WinAPI::DLL_PROCESS_ATTACH) {
+		OpenLog();
+		F4SE::AllocTrampoline(1 << 7);
+		Patches::Preload();
+		g_preloaded = true;
+	}
+
+	return WinAPI::TRUE;
+}
+
+extern "C" DLLEXPORT bool F4SEAPI F4SEPlugin_Query(const F4SE::QueryInterface* a_f4se, F4SE::PluginInfo* a_info)
+{
+	if (!g_preloaded) {
+		stl::report_and_fail("The plugin preloader is not installed or did not run correctly"sv);
+	}
 
 	a_info->infoVersion = F4SE::PluginInfo::kVersion;
 	a_info->name = "Buffout4";
@@ -59,7 +85,6 @@ extern "C" DLLEXPORT bool F4SEAPI F4SEPlugin_Load(const F4SE::LoadInterface* a_f
 	logger::info("Buffout4 loaded"sv);
 
 	F4SE::Init(a_f4se);
-	F4SE::AllocTrampoline(1 << 7);
 
 	const auto messaging = F4SE::GetMessagingInterface();
 	if (!messaging || !messaging->RegisterListener(MessageHandler)) {
@@ -67,7 +92,7 @@ extern "C" DLLEXPORT bool F4SEAPI F4SEPlugin_Load(const F4SE::LoadInterface* a_f
 	}
 
 	Crash::Install();
-	Fixes::InstallEarly();
+	Fixes::PreInit();
 
 	return true;
 }

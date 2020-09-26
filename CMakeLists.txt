@@ -4,7 +4,7 @@ cmake_minimum_required(VERSION 3.18)
 
 project(
 	Buffout4
-	VERSION 1.6.0
+	VERSION 1.7.0
 	LANGUAGES CXX
 )
 
@@ -137,33 +137,8 @@ find_path(XBYAK_INCLUDE_DIRS "xbyak/xbyak.h")
 
 # ---- Add source files ----
 
-set(headers
-	include/AutoTOML.hpp	# TODO: convert to a cmake project
-	src/Crash/Modules/ModuleHandler.h
-	src/Crash/Stack/StackHandler.h
-	src/Crash/CrashHandler.h
-	src/Fixes/ActorIsHostileToActorFix.h
-	src/Fixes/CellInitFix.h
-	src/Fixes/EncounterZoneResetFix.h
-	src/Fixes/FaderMenuFix.h
-	src/Fixes/Fixes.h
-	src/Fixes/SafeExit.h
-	src/Fixes/ScaleformAllocatorFix.h
-	src/Fixes/SmallBlockAllocatorFix.h
-	src/PCH.h
-	src/Settings.h
-)
-
-set(sources
-	src/Crash/Modules/ModuleHandler.cpp
-	src/Crash/Stack/StackHandler.cpp
-	src/Crash/CrashHandler.cpp
-	src/Fixes/CellInitFix.cpp
-	src/Fixes/Fixes.cpp
-	src/Fixes/SmallBlockAllocatorFix.cpp
-	src/main.cpp
-	src/PCH.cpp
-)
+include(cmake/headerlist.cmake)
+include(cmake/sourcelist.cmake)
 
 source_group(
 	TREE ${CMAKE_CURRENT_SOURCE_DIR}
@@ -245,4 +220,5 @@ add_custom_command(
 	COMMAND ${CMAKE_COMMAND} -E copy $<TARGET_FILE:Buffout4> $ENV{Fallout4Path}/Data/F4SE/Plugins/
 	COMMAND ${CMAKE_COMMAND} -E copy $<TARGET_PDB_FILE:Buffout4> $ENV{Fallout4Path}/Data/F4SE/Plugins/
 	COMMAND ${CMAKE_COMMAND} -E copy ${CMAKE_SOURCE_DIR}/Buffout4.toml $ENV{Fallout4Path}/Data/F4SE/Plugins/
+	COMMAND ${CMAKE_COMMAND} -E copy ${CMAKE_SOURCE_DIR}/Buffout4_preload.txt $ENV{Fallout4Path}/Data/F4SE/Plugins/
 )

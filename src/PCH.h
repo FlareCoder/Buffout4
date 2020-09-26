@@ -34,7 +34,15 @@
 
 namespace WinAPI
 {
+	inline constexpr auto(DLL_PROCESS_DETACH){ static_cast<unsigned long>(0) };
+	inline constexpr auto(DLL_PROCESS_ATTACH){ static_cast<unsigned long>(1) };
+	inline constexpr auto(DLL_THREAD_ATTACH){ static_cast<unsigned long>(2) };
+	inline constexpr auto(DLL_THREAD_DETACH){ static_cast<unsigned long>(3) };
+
 	inline constexpr auto(EXCEPTION_EXECUTE_HANDLER){ static_cast<int>(1) };
+
+	inline constexpr auto(FALSE){ static_cast<int>(0) };
+	inline constexpr auto(TRUE){ static_cast<int>(1) };
 
 	inline constexpr auto(UNDNAME_NO_MS_KEYWORDS){ static_cast<std::uint32_t>(0x0002) };
 	inline constexpr auto(UNDNAME_NO_FUNCTION_RETURNS){ static_cast<std::uint32_t>(0x0004) };
@@ -46,6 +54,8 @@ namespace WinAPI
 	inline constexpr auto(UNDNAME_NO_RETURN_UDT_MODEL){ static_cast<std::uint32_t>(0x0400) };
 	inline constexpr auto(UNDNAME_NAME_ONLY){ static_cast<std::uint32_t>(0x1000) };
 	inline constexpr auto(UNDNAME_NO_ARGUMENTS){ static_cast<std::uint32_t>(0x2000) };
+
+	[[nodiscard]] bool(IsDebuggerPresent)() noexcept;
 
 	void(OutputDebugStringA)(
 		const char* a_outputString) noexcept;

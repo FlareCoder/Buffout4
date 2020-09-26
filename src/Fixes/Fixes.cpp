@@ -5,12 +5,10 @@
 #include "Fixes/EncounterZoneResetFix.h"
 #include "Fixes/FaderMenuFix.h"
 #include "Fixes/SafeExit.h"
-#include "Fixes/ScaleformAllocatorFix.h"
-#include "Fixes/SmallBlockAllocatorFix.h"
 
 namespace Fixes
 {
-	void InstallEarly()
+	void PreInit()
 	{
 		Settings::load();
 
@@ -29,17 +27,9 @@ namespace Fixes
 		if (*Settings::SafeExit) {
 			SafeExit::Install();
 		}
-
-		if (*Settings::ScaleformAllocator) {
-			ScaleformAllocatorFix::Install();
-		}
-
-		if (*Settings::SmallBlockAllocator) {
-			SmallBlockAllocatorFix::Install();
-		}
 	}
 
-	void InstallLate()
+	void PostInit()
 	{
 		if (*Settings::EncounterZoneReset) {
 			EncounterZoneResetFix::Install();
